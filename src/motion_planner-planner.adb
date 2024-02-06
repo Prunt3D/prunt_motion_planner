@@ -6,7 +6,7 @@ with Ada.Exceptions;
 package body Motion_Planner.Planner is
 
    Working           : aliased Execution_Block;
-   PP_Last_Pos       : Scaled_Position;
+   PP_Last_Pos       : Scaled_Position := Initial_Position;
    PP_Corners        : Block_Plain_Corners (1 .. Corners_Index'Last);
    PP_Segment_Limits : Block_Segment_Limits (2 .. Corners_Index'Last);
 

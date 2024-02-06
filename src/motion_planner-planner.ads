@@ -6,6 +6,7 @@ with Motion_Planner.PH_Beziers; use Motion_Planner.PH_Beziers;
 generic
    type Flush_Extra_Data_Type is private;
    Flush_Extra_Data_Default : Flush_Extra_Data_Type;
+   Initial_Position : Scaled_Position;
    Max_Corners : Max_Corners_Type := 50_000;
    Preprocessor_Minimum_Move_Distance : Length := 0.001 * mm;
    Corner_Blender_Do_Shifting : Boolean := True;  --  TODO: Make this configurable at runtime.
