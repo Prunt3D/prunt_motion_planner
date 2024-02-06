@@ -81,6 +81,8 @@ package Motion_Planner.Planner is
    procedure Enqueue (Comm : Command);
    procedure Dequeue (Block : out Execution_Block);
 
+   task Runner;
+
 private
 
    package Command_Queues_Interface is new Ada.Containers.Synchronized_Queue_Interfaces (Command);
@@ -96,7 +98,5 @@ private
      (Execution_Block_Queues_Interface, Output_Queue_Length);
 
    Execution_Block_Queue : Execution_Block_Queues.Queue;
-
-   task Runner;
 
 end Motion_Planner.Planner;
