@@ -12,10 +12,10 @@ package body Motion_Planner is
       Cm : constant Crackle  := Start_Crackle;
       Vs : constant Velocity := Start_Vel;
    begin
-      --  Equivalent to: return Distance_At_Time (Profile, Total_Time(Profile), Start_Crackle, Start_Vel);
       return
         (Vs + Cm * T1 * (T1 + T2) * (2.0 * T1 + T2 + T3) * (4.0 * T1 + 2.0 * T2 + T3 + T4) / 2.0) *
         (8.0 * T1 + 4.0 * T2 + 2.0 * T3 + T4);
+      --  Equivalent to: return Distance_At_Time (Profile, Total_Time(Profile), Start_Crackle, Start_Vel);
    end Fast_Distance_At_Max_Time;
 
    function Fast_Velocity_At_Max_Time
@@ -28,8 +28,8 @@ package body Motion_Planner is
       Cm : constant Crackle  := Start_Crackle;
       Vs : constant Velocity := Start_Vel;
    begin
-      --  Equivalent to: return Velocity_At_Time (Profile, Total_Time(Profile), Start_Crackle, Start_Vel);
       return Vs + Cm * T1 * (T1 + T2) * (2.0 * T1 + T2 + T3) * (4.0 * T1 + 2.0 * T2 + T3 + T4);
+      --  Equivalent to: return Velocity_At_Time (Profile, Total_Time(Profile), Start_Crackle, Start_Vel);
    end Fast_Velocity_At_Max_Time;
 
    function Total_Time (Times : Feedrate_Profile_Times) return Time is
@@ -727,5 +727,15 @@ package body Motion_Planner is
            Distance_At_Time (Profile.Decel, T - (Total_Time (Profile.Accel) + Profile.Coast), -Start_Crackle, Mid_Vel);
       end if;
    end Distance_At_Time;
+
+   function Convert (Scaler : Position_Offset_And_Scale; Pos : Position) return Scaled_Position is
+   begin
+      return (Pos + Scaler.Offset) * Scaler.Scale;
+   end Convert;
+
+   function Convert (Scaler : Position_Offset_And_Scale; Pos : Scaled_Position) return Position is
+   begin
+      return Position (Pos / Scaler.Scale) - Scaler.Offset;
+   end Convert;
 
 end Motion_Planner;

@@ -6,7 +6,8 @@ with Ada.Exceptions;
 package body Motion_Planner.Planner is
 
    Working           : aliased Execution_Block;
-   PP_Last_Pos       : Scaled_Position := Initial_Position;
+   Scaler            : Position_Offset_And_Scale;
+   PP_Last_Pos       : Scaled_Position;
    PP_Corners        : Block_Plain_Corners (1 .. Corners_Index'Last);
    PP_Segment_Limits : Block_Segment_Limits (2 .. Corners_Index'Last);
 
@@ -58,15 +59,15 @@ package body Motion_Planner.Planner is
                   exit;
                when Flush_And_Reset_Position_Kind =>
                   Flush_Extra_Data := Next_Command.Flush_Extra_Data;
-                  PP_Last_Pos      := Next_Command.Reset_Pos;
+                  PP_Last_Pos      := Convert (Scaler, Next_Command.Reset_Pos);
                   N_Corners        := N_Corners - 1;
                   exit;
                when Move_Kind =>
-                  if abs (PP_Last_Pos - Next_Command.Pos) < Preprocessor_Minimum_Move_Distance then
+                  if abs (Convert (Scaler, PP_Last_Pos) - Next_Command.Pos) < Preprocessor_Minimum_Move_Distance then
                      N_Corners := N_Corners - 1;
                   else
-                     PP_Last_Pos                   := Next_Command.Pos;
-                     PP_Corners (N_Corners)        := Next_Command.Pos;
+                     PP_Last_Pos                   := Convert (Scaler, Next_Command.Pos);
+                     PP_Corners (N_Corners)        := Convert (Scaler, Next_Command.Pos);
                      PP_Segment_Limits (N_Corners) := Next_Command.Limits;
                   end if;
             end case;
@@ -79,6 +80,9 @@ package body Motion_Planner.Planner is
       Working.Corners          := PP_Corners (1 .. N_Corners);
       Working.Segment_Limits   := PP_Segment_Limits (2 .. N_Corners);
       Working.Flush_Extra_Data := Flush_Extra_Data;
+      Working.Next_Block_Pos   := PP_Last_Pos;
+      --  TODO: In the future we can make this changeable per-block.
+      Working.Scaler           := Scaler;
    end Preprocessor;
 
    procedure Corner_Blender is
@@ -224,10 +228,10 @@ package body Motion_Planner.Planner is
             Result : Feedrate_Profile_Times := Profile;
 
             Lower : Time := 0.0 * s;
+            Upper : Time := 86_400.0 * s;
             --  A maximum of 24 hours should be more than enough unless you are using Prunt to control a space probe or
             --  a particle accelerator. It is not recommended to install Prunt on space probes or particle
             --  accelerators.
-            Upper : Time := 86_400.0 * s;
 
             type Casted_Time is mod 2**64;
             function Cast_Time is new Ada.Unchecked_Conversion (Time, Casted_Time);
@@ -324,9 +328,9 @@ package body Motion_Planner.Planner is
 
          for I in reverse Cases'Range loop
             if I = Cases'First or D > Fast_Distance_At_Max_Time (Cases (I), Cm, Vs) then
+               return Solve_Distance_At_Time (Cases (I), I);
                --  There are simple analytical solutions for a lot of these, but this is already fast so there is no
                --  reason to optimise it.
-               return Solve_Distance_At_Time (Cases (I), I);
             end if;
          end loop;
 
@@ -335,6 +339,26 @@ package body Motion_Planner.Planner is
       end Optimal_Accel_For_Distance;
 
    begin
+      --  Adjust tangential velocity limit to account for scaled velocity limits.
+      for I in Working.Segment_Limits'Range loop
+         for J in Working.Segment_Limits (I).Scaled_Velocities_Max'Range loop
+            declare
+               Total_Distance : constant Length := abs (Working.Shifted_Corners (I - 1) - Working.Shifted_Corners (I));
+               Scaled_Distance : constant Length :=
+                 abs
+                 ((Working.Shifted_Corners (I - 1) - Working.Shifted_Corners (I)) *
+                  Working.Segment_Limits (I).Scaled_Velocities_Max (J).Scale);
+            begin
+               if Scaled_Distance /= 0.0 * mm then
+                  Working.Segment_Limits (I).Tangential_Velocity_Max :=
+                    Velocity'Min
+                      (Working.Segment_Limits (I).Tangential_Velocity_Max,
+                       Working.Segment_Limits (I).Scaled_Velocities_Max (J).Vel * Total_Distance / Scaled_Distance);
+               end if;
+            end;
+         end loop;
+      end loop;
+
       Working.Corner_Velocity_Limits (Working.Corner_Velocity_Limits'First) := 0.0 * mm / s;
       Working.Corner_Velocity_Limits (Working.Corner_Velocity_Limits'Last)  := 0.0 * mm / s;
 
@@ -345,7 +369,9 @@ package body Motion_Planner.Planner is
 
             Inverse_Curvature : constant Length       := PH_Beziers.Inverse_Curvature (Working.Beziers (I));
             Velocity_Max      : constant Velocity     :=
-              Velocity'Min (Working.Segment_Limits (I).Velocity_Max, Working.Segment_Limits (I + 1).Velocity_Max);
+              Velocity'Min
+                (Working.Segment_Limits (I).Tangential_Velocity_Max,
+                 Working.Segment_Limits (I + 1).Tangential_Velocity_Max);
             Acceleration_Max  : constant Acceleration :=
               Acceleration'Min
                 (Working.Segment_Limits (I).Acceleration_Max, Working.Segment_Limits (I + 1).Acceleration_Max);
@@ -369,11 +395,6 @@ package body Motion_Planner.Planner is
             --  TODO: Add limit based on interpolation time.
             --  TODO: Snap and crackle limits currently do not match paper and are likely overly conservative.
 
-            --  The 0.97 here ensures that no feedrate profiles end up with a very small accel/decel part which can
-            --  lead to numerical errors that cause kinematic limits to be greatly exceeded for a single interpolation
-            --  period. If this is removed, then the sanity check in Feedrate_Profile_Generator also needs to be
-            --  removed.
-            --  TODO: Check whether this actually matters in practice.
             Optimal_Profile :=
               Optimal_Accel_For_Distance
                 (Working.Corner_Velocity_Limits (I - 1),
@@ -389,6 +410,11 @@ package body Motion_Planner.Planner is
                    (Optimal_Profile,
                     0.97 * Working.Segment_Limits (I).Crackle_Max,
                     Working.Corner_Velocity_Limits (I - 1)));
+            --  The 0.97 here ensures that no feedrate profiles end up with a very small accel/decel part which can
+            --  lead to numerical errors that cause kinematic limits to be greatly exceeded for a single interpolation
+            --  period. If this is removed, then the sanity check in Feedrate_Profile_Generator also needs to be
+            --  removed.
+            --  TODO: Check whether this actually matters in practice.
 
             Working.Corner_Velocity_Limits (I) := Limit;
          end;
@@ -442,10 +468,10 @@ package body Motion_Planner.Planner is
             Result : Feedrate_Profile_Times := Profile;
 
             Lower : Time := 0.0 * s;
+            Upper : Time := 86_400.0 * s;
             --  A maximum of 24 hours should be more than enough unless you are using Prunt to control a space probe or
             --  a particle accelerator. It is not recommended to install Prunt on space probes or particle
             --  accelerators.
-            Upper : Time := 86_400.0 * s;
 
             type Casted_Time is mod 2**64;
             function Cast_Time is new Ada.Unchecked_Conversion (Time, Casted_Time);
@@ -584,14 +610,14 @@ package body Motion_Planner.Planner is
 
          Working.Feedrate_Profiles (I).Accel :=
            Optimal_Accel_For_Delta_V
-             (Working.Corner_Velocity_Limits (I - 1) - Working.Segment_Limits (I).Velocity_Max,
+             (Working.Corner_Velocity_Limits (I - 1) - Working.Segment_Limits (I).Tangential_Velocity_Max,
               Working.Segment_Limits (I).Acceleration_Max,
               Working.Segment_Limits (I).Jerk_Max,
               Working.Segment_Limits (I).Snap_Max,
               Working.Segment_Limits (I).Crackle_Max);
          Working.Feedrate_Profiles (I).Decel :=
            Optimal_Accel_For_Delta_V
-             (Working.Corner_Velocity_Limits (I) - Working.Segment_Limits (I).Velocity_Max,
+             (Working.Corner_Velocity_Limits (I) - Working.Segment_Limits (I).Tangential_Velocity_Max,
               Working.Segment_Limits (I).Acceleration_Max,
               Working.Segment_Limits (I).Jerk_Max,
               Working.Segment_Limits (I).Snap_Max,
@@ -603,7 +629,7 @@ package body Motion_Planner.Planner is
                 (Working.Feedrate_Profiles (I).Accel,
                  Working.Segment_Limits (I).Crackle_Max,
                  Working.Corner_Velocity_Limits (I - 1));
-            Coast_Velocity : constant Velocity := Working.Segment_Limits (I).Velocity_Max;
+            Coast_Velocity : constant Velocity := Working.Segment_Limits (I).Tangential_Velocity_Max;
             Decel_Distance : Length            :=
               Fast_Distance_At_Max_Time
                 (Working.Feedrate_Profiles (I).Decel, -Working.Segment_Limits (I).Crackle_Max, Coast_Velocity);
@@ -618,7 +644,7 @@ package body Motion_Planner.Planner is
                   type Casted_Vel is mod 2**64;
                   function Cast_Vel is new Ada.Unchecked_Conversion (Velocity, Casted_Vel);
                   function Cast_Vel is new Ada.Unchecked_Conversion (Casted_Vel, Velocity);
-                  Upper : Velocity := Working.Segment_Limits (I).Velocity_Max;
+                  Upper : Velocity := Working.Segment_Limits (I).Tangential_Velocity_Max;
                   Lower : Velocity :=
                     Velocity'Max (Working.Corner_Velocity_Limits (I - 1), Working.Corner_Velocity_Limits (I));
                   Mid   : Velocity;
@@ -674,6 +700,11 @@ package body Motion_Planner.Planner is
 
    task body Runner is
    begin
+      accept Setup (In_Scaler : Position_Scale) do
+         Scaler      := (Offset => [others => Length (0.0)], Scale => In_Scaler);
+         PP_Last_Pos := Convert (Scaler, Initial_Position);
+      end Setup;
+
       loop
          Preprocessor;
          Corner_Blender;
@@ -683,8 +714,77 @@ package body Motion_Planner.Planner is
       end loop;
    exception
       when E : others =>
-         Ada.Text_IO.Put_Line ("Exception in Motion.Planner:");
+         Ada.Text_IO.Put_Line ("Exception in Motion_Planner.Planner:");
          Ada.Text_IO.Put_Line (Ada.Exceptions.Exception_Information (E));
    end Runner;
+
+   --  WARNING: This procedure is part of the public API and as such will be called from a different thread.
+   --  Do not touch any of the package level variables.
+   function Segment_Time (Block : Execution_Block; Finishing_Corner : Corners_Index) return Time is
+   begin
+      return Total_Time (Block.Feedrate_Profiles (Finishing_Corner));
+   end Segment_Time;
+
+   --  WARNING: This procedure is part of the public API and as such will be called from a different thread.
+   --  Do not touch any of the package level variables.
+   function Segment_Corner_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length is
+   begin
+      return
+        abs
+        (Convert (Block.Scaler, Block.Corners (Finishing_Corner)) -
+         Convert (Block.Scaler, Block.Corners (Finishing_Corner - 1)));
+   end Segment_Corner_Distance;
+
+   --  WARNING: This procedure is part of the public API and as such will be called from a different thread.
+   --  Do not touch any of the package level variables.
+   function Segment_Pos_At_Time
+     (Block : Execution_Block; Finishing_Corner : Corners_Index; Time_Into_Segment : Time) return Position
+   is
+      Start_Curve_Half_Distance : constant Length :=
+        Distance_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) -
+        Distance_At_T (Block.Beziers (Finishing_Corner - 1), 0.5);
+      End_Curve_Half_Distance   : constant Length := Distance_At_T (Block.Beziers (Finishing_Corner), 0.5);
+      Mid_Distance              : constant Length :=
+        abs
+        (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) - Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0));
+
+      Distance : Length :=
+        Distance_At_Time
+          (Block.Feedrate_Profiles (Finishing_Corner),
+           Time_Into_Segment,
+           Block.Segment_Limits (Finishing_Corner).Crackle_Max,
+           Block.Corner_Velocity_Limits (Finishing_Corner - 1));
+
+      Pos : Scaled_Position;
+   begin
+      if Distance < Start_Curve_Half_Distance then
+         Pos := Point_At_Distance (Block.Beziers (Finishing_Corner - 1), Distance + Start_Curve_Half_Distance);
+      elsif Distance < Start_Curve_Half_Distance + Mid_Distance then
+         Pos :=
+           Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) +
+           (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) -
+              Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0)) *
+             ((Distance - Start_Curve_Half_Distance) / Mid_Distance);
+      else
+         Pos :=
+           Point_At_Distance (Block.Beziers (Finishing_Corner), Distance - Start_Curve_Half_Distance - Mid_Distance);
+      end if;
+
+      return Convert (Block.Scaler, Pos);
+   end Segment_Pos_At_Time;
+
+   --  WARNING: This procedure is part of the public API and as such will be called from a different thread.
+   --  Do not touch any of the package level variables.
+   function Next_Block_Pos (Block : Execution_Block) return Position is
+   begin
+      return Convert (Block.Scaler, Block.Next_Block_Pos);
+   end Next_Block_Pos;
+
+   --  WARNING: This procedure is part of the public API and as such will be called from a different thread.
+   --  Do not touch any of the package level variables.
+   function Flush_Extra_Data (Block : Execution_Block) return Flush_Extra_Data_Type is
+   begin
+      return Block.Flush_Extra_Data;
+   end Flush_Extra_Data;
 
 end Motion_Planner.Planner;

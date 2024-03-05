@@ -2,13 +2,22 @@ with Physical_Types; use Physical_Types;
 
 package Motion_Planner is
 
+   type Scaled_Velocity_Limit is record
+      Scale : Position_Scale := [others => 0.0];
+      Vel   : Velocity := 0.0 * mm / s;
+   end record;
+
+   type Scaled_Velocities_Max_Array_Index is range 1 .. 8;
+   type Scaled_Velocities_Max_Array is array (Scaled_Velocities_Max_Array_Index) of Scaled_Velocity_Limit;
+
    type Kinematic_Limits is record
-      Velocity_Max     : Velocity;
-      Acceleration_Max : Acceleration;
-      Jerk_Max         : Jerk;
-      Snap_Max         : Snap;
-      Crackle_Max      : Crackle;
-      Chord_Error_Max  : Length;
+      Scaled_Velocities_Max   : Scaled_Velocities_Max_Array;
+      Tangential_Velocity_Max : Velocity;
+      Acceleration_Max        : Acceleration;
+      Jerk_Max                : Jerk;
+      Snap_Max                : Snap;
+      Crackle_Max             : Crackle;
+      Chord_Error_Max         : Length;
    end record;
 
    type Max_Corners_Type is range 2 .. 2**63 - 1;
@@ -22,16 +31,18 @@ package Motion_Planner is
       Decel : Feedrate_Profile_Times;
    end record;
 
-   --  A negative Start_Crackle value should be used in all of the below functions when working with a deceleration
-   --  profile. This has the effect of negating the crackle graph shown in Feedrate_Profiles.ipynb.
+   type Position_Offset_And_Scale is record
+      Offset : Position_Offset;
+      Scale  : Position_Scale;
+   end record;
 
-   --  These two functions use a symbolically equivalent equation to X_At_Time where T is the time at the end of the
-   --  feedrate profile. They may not be numerically identical to the functions that take T as an input but this does
-   --  not cause issues with the current design of the motion planner.
    function Fast_Distance_At_Max_Time
      (Profile : Feedrate_Profile_Times; Start_Crackle : Crackle; Start_Vel : Velocity) return Length;
    function Fast_Velocity_At_Max_Time
      (Profile : Feedrate_Profile_Times; Start_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
+   --  These two functions use a symbolically equivalent equation to X_At_Time where T is the time at the end of the
+   --  feedrate profile. They may not be numerically identical to the functions that take T as an input but this does
+   --  not cause issues with the current design of the motion planner.
 
    function Total_Time (Times : Feedrate_Profile_Times) return Time;
 
@@ -55,5 +66,8 @@ package Motion_Planner is
      (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
    function Distance_At_Time
      (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle; Start_Vel : Velocity) return Length;
+
+   function Convert (Scaler : Position_Offset_And_Scale; Pos : Position) return Scaled_Position;
+   function Convert (Scaler : Position_Offset_And_Scale; Pos : Scaled_Position) return Position;
 
 end Motion_Planner;

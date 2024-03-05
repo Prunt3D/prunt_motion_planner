@@ -1,15 +1,15 @@
 with Ada.Containers.Synchronized_Queue_Interfaces;
 with Ada.Containers.Bounded_Synchronized_Queues;
 with Ada.Containers;
-with Motion_Planner.PH_Beziers; use Motion_Planner.PH_Beziers;
+private with Motion_Planner.PH_Beziers;
 
 generic
    type Flush_Extra_Data_Type is private;
    Flush_Extra_Data_Default : Flush_Extra_Data_Type;
-   Initial_Position : Scaled_Position;
+   Initial_Position : Position;
    Max_Corners : Max_Corners_Type := 50_000;
    Preprocessor_Minimum_Move_Distance : Length := 0.001 * mm;
-   Corner_Blender_Do_Shifting : Boolean := True;  --  TODO: Make this configurable at runtime.
+   Corner_Blender_Do_Shifting : Boolean := True; --  TODO: Make this configurable at runtime.
    Corner_Blender_Max_Computational_Error : Length := 0.001 * mm;
    Corner_Blender_Max_Secondary_Angle_To_Blend : Angle := 89.5 * deg;
    Input_Queue_Length : Ada.Containers.Count_Type := 1_000;
@@ -24,17 +24,38 @@ package Motion_Planner.Planner is
             Flush_Extra_Data : Flush_Extra_Data_Type;
             case Kind is
                when Flush_And_Reset_Position_Kind =>
-                  Reset_Pos : Scaled_Position;
+                  Reset_Pos : Position;
                when others =>
                   null;
             end case;
          when Move_Kind =>
-            Pos    : Scaled_Position;
+            Pos    : Position;
             Limits : Kinematic_Limits;
       end case;
    end record;
 
    type Corners_Index is new Max_Corners_Type'Base range 0 .. Max_Corners;
+
+   task Runner is
+      entry Setup (In_Scaler : Position_Scale);
+   end Runner;
+
+   type Execution_Block (N_Corners : Corners_Index := 0) is private;
+   --  N_Corners may be 0 or 1, in which case there are no segments.
+
+   --  First Finishing_Corner = 2. If N_Corners < 2 then these functions must not be called.
+   function Segment_Time (Block : Execution_Block; Finishing_Corner : Corners_Index) return Time;
+   function Segment_Corner_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length;
+   function Segment_Pos_At_Time
+     (Block : Execution_Block; Finishing_Corner : Corners_Index; Time_Into_Segment : Time) return Position;
+   function Next_Block_Pos (Block : Execution_Block) return Position;
+   function Flush_Extra_Data (Block : Execution_Block) return Flush_Extra_Data_Type;
+
+   procedure Enqueue (Comm : Command);
+   procedure Dequeue (Block : out Execution_Block);
+
+private
+   use Motion_Planner.PH_Beziers;
 
    --  Preprocessor
    type Block_Plain_Corners is array (Corners_Index range <>) of Scaled_Position;
@@ -51,7 +72,6 @@ package Motion_Planner.Planner is
    --  Kinematic_Limiter
    type Block_Corner_Velocity_Limits is array (Corners_Index range <>) of Velocity;
 
-   --  N_Corners may be 0 or 1, in which case no movement should occur.
    type Execution_Block (N_Corners : Corners_Index := 0) is record
       --  TODO: Having all these fields accessible before the relevant stage is called is not ideal, but using a
       --  discriminated type with a discriminant to indicate the stage causes a stack overflow when trying to change
@@ -63,6 +83,8 @@ package Motion_Planner.Planner is
 
       --  Preprocessor
       Flush_Extra_Data : Flush_Extra_Data_Type;
+      Next_Block_Pos   : Scaled_Position;
+      Scaler           : Position_Offset_And_Scale;
       Corners          : Block_Plain_Corners (1 .. N_Corners);
       Segment_Limits   : Block_Segment_Limits (2 .. N_Corners);
 
@@ -77,13 +99,6 @@ package Motion_Planner.Planner is
       --  Feedrate_Profile_Generator
       Feedrate_Profiles : Block_Feedrate_Profiles (2 .. N_Corners);
    end record;
-
-   procedure Enqueue (Comm : Command);
-   procedure Dequeue (Block : out Execution_Block);
-
-   task Runner;
-
-private
 
    package Command_Queues_Interface is new Ada.Containers.Synchronized_Queue_Interfaces (Command);
    package Command_Queues is new Ada.Containers.Bounded_Synchronized_Queues

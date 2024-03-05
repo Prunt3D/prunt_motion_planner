@@ -1,4 +1,4 @@
-package Motion_Planner.PH_Beziers is
+private package Motion_Planner.PH_Beziers is
 
    type PH_Bezier is private;
 
