@@ -339,25 +339,25 @@ package body Motion_Planner.Planner is
       end Optimal_Accel_For_Distance;
 
    begin
-      --  Adjust tangential velocity limit to account for scaled velocity limits.
-      for I in Working.Segment_Limits'Range loop
-         for J in Working.Segment_Limits (I).Scaled_Velocities_Max'Range loop
-            declare
-               Total_Distance : constant Length := abs (Working.Shifted_Corners (I - 1) - Working.Shifted_Corners (I));
-               Scaled_Distance : constant Length :=
-                 abs
-                 ((Working.Shifted_Corners (I - 1) - Working.Shifted_Corners (I)) *
-                  Working.Segment_Limits (I).Scaled_Velocities_Max (J).Scale);
-            begin
-               if Scaled_Distance /= 0.0 * mm then
-                  Working.Segment_Limits (I).Tangential_Velocity_Max :=
-                    Velocity'Min
-                      (Working.Segment_Limits (I).Tangential_Velocity_Max,
-                       Working.Segment_Limits (I).Scaled_Velocities_Max (J).Vel * Total_Distance / Scaled_Distance);
-               end if;
-            end;
-         end loop;
-      end loop;
+      --  --  Adjust tangential velocity limit to account for scaled velocity limits.
+      --  for I in Working.Segment_Limits'Range loop
+      --     for J in Working.Segment_Limits (I).Scaled_Velocities_Max'Range loop
+      --        declare
+      --           Total_Distance : constant Length := abs (Working.Shifted_Corners (I - 1) - Working.Shifted_Corners (I));
+      --           Scaled_Distance : constant Length :=
+      --             abs
+      --             ((Working.Shifted_Corners (I - 1) - Working.Shifted_Corners (I)) *
+      --              Working.Segment_Limits (I).Scaled_Velocities_Max (J).Scale);
+      --        begin
+      --           if Scaled_Distance /= 0.0 * mm then
+      --              Working.Segment_Limits (I).Tangential_Velocity_Max :=
+      --                Velocity'Min
+      --                  (Working.Segment_Limits (I).Tangential_Velocity_Max,
+      --                   Working.Segment_Limits (I).Scaled_Velocities_Max (J).Vel * Total_Distance / Scaled_Distance);
+      --           end if;
+      --        end;
+      --     end loop;
+      --  end loop;
 
       Working.Corner_Velocity_Limits (Working.Corner_Velocity_Limits'First) := 0.0 * mm / s;
       Working.Corner_Velocity_Limits (Working.Corner_Velocity_Limits'Last)  := 0.0 * mm / s;
