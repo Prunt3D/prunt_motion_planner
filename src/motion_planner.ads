@@ -12,12 +12,12 @@ package Motion_Planner is
 
    type Kinematic_Limits is record
       --  Scaled_Velocities_Max   : Scaled_Velocities_Max_Array;
-      Tangential_Velocity_Max : Velocity;
-      Acceleration_Max        : Acceleration;
-      Jerk_Max                : Jerk;
-      Snap_Max                : Snap;
-      Crackle_Max             : Crackle;
-      Chord_Error_Max         : Length;
+      Tangential_Velocity_Max : Velocity     := 0.0 * mm / s;
+      Acceleration_Max        : Acceleration := 0.0 * mm / s**2;
+      Jerk_Max                : Jerk         := 0.0 * mm / s**3;
+      Snap_Max                : Snap         := 0.0 * mm / s**4;
+      Crackle_Max             : Crackle      := 0.0 * mm / s**5;
+      Chord_Error_Max         : Length       := 0.0 * mm;
    end record;
 
    type Max_Corners_Type is range 2 .. 2**63 - 1;
