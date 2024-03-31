@@ -29,15 +29,15 @@ package Motion_Planner.Planner is
                   null;
             end case;
          when Move_Kind =>
-            Pos    : Position;
-            Limits : Kinematic_Limits;
+            Pos      : Position;
+            Feedrate : Velocity;
       end case;
    end record;
 
    type Corners_Index is new Max_Corners_Type'Base range 0 .. Max_Corners;
 
    task Runner is
-      entry Setup (In_Scaler : Position_Scale);
+      entry Setup (In_Scaler : Position_Scale; In_Limits : Kinematic_Limits);
    end Runner;
 
    type Execution_Block (N_Corners : Corners_Index := 0) is private;
@@ -47,7 +47,11 @@ package Motion_Planner.Planner is
    function Segment_Time (Block : Execution_Block; Finishing_Corner : Corners_Index) return Time;
    function Segment_Corner_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length;
    function Segment_Pos_At_Time
-     (Block : Execution_Block; Finishing_Corner : Corners_Index; Time_Into_Segment : Time) return Position;
+     (Block              :     Execution_Block;
+      Finishing_Corner   :     Corners_Index;
+      Time_Into_Segment  :     Time;
+      Is_Past_Accel_Part : out Boolean)
+      return Position;
    function Next_Block_Pos (Block : Execution_Block) return Position;
    function Flush_Extra_Data (Block : Execution_Block) return Flush_Extra_Data_Type;
 
@@ -59,7 +63,7 @@ private
 
    --  Preprocessor
    type Block_Plain_Corners is array (Corners_Index range <>) of Scaled_Position;
-   type Block_Segment_Limits is array (Corners_Index range <>) of Kinematic_Limits;
+   type Block_Segment_Feedrates is array (Corners_Index range <>) of Velocity;
 
    --  Corner_Blender
    type Block_Beziers is array (Corners_Index range <>) of PH_Bezier;
@@ -82,11 +86,12 @@ private
       --  faster than the same code without discriminated types (refer to the no-discriminated-records branch).
 
       --  Preprocessor
-      Flush_Extra_Data : Flush_Extra_Data_Type;
-      Next_Block_Pos   : Scaled_Position;
-      Scaler           : Position_Offset_And_Scale;
-      Corners          : Block_Plain_Corners (1 .. N_Corners);
-      Segment_Limits   : Block_Segment_Limits (2 .. N_Corners);
+      Flush_Extra_Data  : Flush_Extra_Data_Type;
+      Next_Block_Pos    : Scaled_Position;
+      Scaler            : Position_Offset_And_Scale;
+      Limits            : Kinematic_Limits;
+      Corners           : Block_Plain_Corners (1 .. N_Corners);
+      Segment_Feedrates : Block_Segment_Feedrates (2 .. N_Corners);
 
       --  Corner_Blender
       Beziers                     : Block_Beziers (1 .. N_Corners);
