@@ -36,35 +36,35 @@ package Motion_Planner is
    end record;
 
    function Fast_Distance_At_Max_Time
-     (Profile : Feedrate_Profile_Times; Start_Crackle : Crackle; Start_Vel : Velocity) return Length;
+     (Profile : Feedrate_Profile_Times; Max_Crackle : Crackle; Start_Vel : Velocity) return Length;
    function Fast_Velocity_At_Max_Time
-     (Profile : Feedrate_Profile_Times; Start_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
+     (Profile : Feedrate_Profile_Times; Max_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
    --  These two functions use a symbolically equivalent equation to X_At_Time where T is the time at the end of the
    --  feedrate profile. They may not be numerically identical to the functions that take T as an input but this does
    --  not cause issues with the current design of the motion planner.
 
    function Total_Time (Times : Feedrate_Profile_Times) return Time;
 
-   function Crackle_At_Time (Profile : Feedrate_Profile_Times; T : Time; Start_Crackle : Crackle) return Crackle;
-   function Snap_At_Time (Profile : Feedrate_Profile_Times; T : Time; Start_Crackle : Crackle) return Snap;
-   function Jerk_At_Time (Profile : Feedrate_Profile_Times; T : Time; Start_Crackle : Crackle) return Jerk;
+   function Crackle_At_Time (Profile : Feedrate_Profile_Times; T : Time; Max_Crackle : Crackle) return Crackle;
+   function Snap_At_Time (Profile : Feedrate_Profile_Times; T : Time; Max_Crackle : Crackle) return Snap;
+   function Jerk_At_Time (Profile : Feedrate_Profile_Times; T : Time; Max_Crackle : Crackle) return Jerk;
    function Acceleration_At_Time
-     (Profile : Feedrate_Profile_Times; T : Time; Start_Crackle : Crackle) return Acceleration;
+     (Profile : Feedrate_Profile_Times; T : Time; Max_Crackle : Crackle) return Acceleration;
    function Velocity_At_Time
-     (Profile : Feedrate_Profile_Times; T : Time; Start_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
+     (Profile : Feedrate_Profile_Times; T : Time; Max_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
    function Distance_At_Time
-     (Profile : Feedrate_Profile_Times; T : Time; Start_Crackle : Crackle; Start_Vel : Velocity) return Length;
+     (Profile : Feedrate_Profile_Times; T : Time; Max_Crackle : Crackle; Start_Vel : Velocity) return Length;
 
    function Total_Time (Profile : Feedrate_Profile) return Time;
 
-   function Crackle_At_Time (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle) return Crackle;
-   function Snap_At_Time (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle) return Snap;
-   function Jerk_At_Time (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle) return Jerk;
-   function Acceleration_At_Time (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle) return Acceleration;
+   function Crackle_At_Time (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle) return Crackle;
+   function Snap_At_Time (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle) return Snap;
+   function Jerk_At_Time (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle) return Jerk;
+   function Acceleration_At_Time (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle) return Acceleration;
    function Velocity_At_Time
-     (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
+     (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
    function Distance_At_Time
-     (Profile : Feedrate_Profile; T : Time; Start_Crackle : Crackle; Start_Vel : Velocity) return Length;
+     (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle; Start_Vel : Velocity) return Length;
 
    function Convert (Scaler : Position_Offset_And_Scale; Pos : Position) return Scaled_Position;
    function Convert (Scaler : Position_Offset_And_Scale; Pos : Scaled_Position) return Position;
