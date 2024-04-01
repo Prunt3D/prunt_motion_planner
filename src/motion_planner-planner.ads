@@ -54,6 +54,7 @@ package Motion_Planner.Planner is
       return Position;
    function Next_Block_Pos (Block : Execution_Block) return Position;
    function Flush_Extra_Data (Block : Execution_Block) return Flush_Extra_Data_Type;
+   function Segment_Accel_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length;
 
    procedure Enqueue (Comm : Command);
    procedure Dequeue (Block : out Execution_Block);

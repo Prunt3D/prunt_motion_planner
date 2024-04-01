@@ -771,4 +771,16 @@ package body Motion_Planner.Planner is
       return Block.Flush_Extra_Data;
    end Flush_Extra_Data;
 
+   --  WARNING: This procedure is part of the public API and as such will be called from a different thread.
+   --  Do not touch any of the package level variables.
+   function Segment_Accel_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length is
+   begin
+      return
+        Distance_At_Time
+          (Profile     => Block.Feedrate_Profiles (Finishing_Corner),
+           T           => Total_Time (Block.Feedrate_Profiles (Finishing_Corner).Accel),
+           Max_Crackle => Block.Limits.Crackle_Max,
+           Start_Vel   => Block.Corner_Velocity_Limits (Finishing_Corner - 1));
+   end Segment_Accel_Distance;
+
 end Motion_Planner.Planner;
