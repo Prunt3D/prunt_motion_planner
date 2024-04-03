@@ -728,6 +728,36 @@ package body Motion_Planner is
       end if;
    end Distance_At_Time;
 
+   function Distance_At_Time
+     (Profile            :     Feedrate_Profile;
+      T                  :     Time;
+      Max_Crackle        :     Crackle;
+      Start_Vel          :     Velocity;
+      Is_Past_Accel_Part : out Boolean)
+      return Length
+   is
+      Mid_Vel    : constant Velocity :=
+        Velocity_At_Time (Profile.Accel, Total_Time (Profile.Accel), Max_Crackle, Start_Vel);
+      Accel_Dist : constant Length   :=
+        Distance_At_Time (Profile.Accel, Total_Time (Profile.Accel), Max_Crackle, Start_Vel);
+      Mid_Dist   : constant Length   := Mid_Vel * Profile.Coast;
+   begin
+      pragma Assert (T <= Total_Time (Profile));
+
+      if T <= Total_Time (Profile.Accel) then
+         Is_Past_Accel_Part := False;
+         return Distance_At_Time (Profile.Accel, T, Max_Crackle, Start_Vel);
+      elsif T < Total_Time (Profile.Accel) + Profile.Coast then
+         Is_Past_Accel_Part := True;
+         return Accel_Dist + Mid_Vel * (T - Total_Time (Profile.Accel));
+      else
+         Is_Past_Accel_Part := True;
+         return
+           Accel_Dist + Mid_Dist +
+           Distance_At_Time (Profile.Decel, T - (Total_Time (Profile.Accel) + Profile.Coast), -Max_Crackle, Mid_Vel);
+      end if;
+   end Distance_At_Time;
+
    function Convert (Scaler : Position_Offset_And_Scale; Pos : Position) return Scaled_Position is
    begin
       return (Pos + Scaler.Offset) * Scaler.Scale;

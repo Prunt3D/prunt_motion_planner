@@ -734,24 +734,22 @@ package body Motion_Planner.Planner is
           (Block.Feedrate_Profiles (Finishing_Corner),
            Time_Into_Segment,
            Block.Limits.Crackle_Max,
-           Block.Corner_Velocity_Limits (Finishing_Corner - 1));
+           Block.Corner_Velocity_Limits (Finishing_Corner - 1),
+           Is_Past_Accel_Part);
 
       Pos : Scaled_Position;
    begin
       if Distance < Start_Curve_Half_Distance then
          Pos := Point_At_Distance (Block.Beziers (Finishing_Corner - 1), Distance + Start_Curve_Half_Distance);
-         Is_Past_Accel_Part := False;
       elsif Distance < Start_Curve_Half_Distance + Mid_Distance then
          Pos                :=
            Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) +
            (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) -
               Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0)) *
              ((Distance - Start_Curve_Half_Distance) / Mid_Distance);
-         Is_Past_Accel_Part := True;
       else
          Pos                :=
            Point_At_Distance (Block.Beziers (Finishing_Corner), Distance - Start_Curve_Half_Distance - Mid_Distance);
-         Is_Past_Accel_Part := True;
       end if;
 
       return Convert (Block.Scaler, Pos);

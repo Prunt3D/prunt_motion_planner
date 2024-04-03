@@ -65,6 +65,13 @@ package Motion_Planner is
      (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle; Start_Vel : Velocity) return Velocity;
    function Distance_At_Time
      (Profile : Feedrate_Profile; T : Time; Max_Crackle : Crackle; Start_Vel : Velocity) return Length;
+   function Distance_At_Time
+     (Profile            :     Feedrate_Profile;
+      T                  :     Time;
+      Max_Crackle        :     Crackle;
+      Start_Vel          :     Velocity;
+      Is_Past_Accel_Part : out Boolean)
+      return Length;
 
    function Convert (Scaler : Position_Offset_And_Scale; Pos : Position) return Scaled_Position;
    function Convert (Scaler : Position_Offset_And_Scale; Pos : Scaled_Position) return Position;
