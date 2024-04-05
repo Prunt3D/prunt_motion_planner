@@ -75,6 +75,10 @@ package body Motion_Planner.Planner is
          end;
       end loop;
 
+      if Is_Homing_Move (Flush_Extra_Data) and N_Corners /= 2 then
+         raise Constraint_Error with "Homing move must have exactly 2 corners.";
+      end if;
+
       --  This is hacky and not portable, but if we try to assign to the entire record as you normally would then GCC
       --  insists on creating a whole Execution_Block on the stack.
       Working_N_Corners         := N_Corners;
@@ -685,8 +689,13 @@ package body Motion_Planner.Planner is
       loop
          Preprocessor;
          Corner_Blender;
-         Kinematic_Limiter;
-         Feedrate_Profile_Generator;
+         loop
+            Kinematic_Limiter;
+            Feedrate_Profile_Generator;
+            exit when (not Is_Homing_Move (Working.Flush_Extra_Data))
+              or else Working.Feedrate_Profiles (2).Coast >= Home_Move_Minimum_Coast_Time;
+            Working.Segment_Feedrates (2) := Working.Segment_Feedrates (2) * 0.9;
+         end loop;
          Execution_Block_Queue.Enqueue (Working);
       end loop;
    exception
