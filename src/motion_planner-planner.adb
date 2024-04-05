@@ -742,13 +742,13 @@ package body Motion_Planner.Planner is
       if Distance < Start_Curve_Half_Distance then
          Pos := Point_At_Distance (Block.Beziers (Finishing_Corner - 1), Distance + Start_Curve_Half_Distance);
       elsif Distance < Start_Curve_Half_Distance + Mid_Distance then
-         Pos                :=
+         Pos :=
            Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) +
            (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) -
               Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0)) *
              ((Distance - Start_Curve_Half_Distance) / Mid_Distance);
       else
-         Pos                :=
+         Pos :=
            Point_At_Distance (Block.Beziers (Finishing_Corner), Distance - Start_Curve_Half_Distance - Mid_Distance);
       end if;
 
