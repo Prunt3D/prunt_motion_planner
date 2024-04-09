@@ -2,16 +2,7 @@ with Physical_Types; use Physical_Types;
 
 package Motion_Planner is
 
-   --  type Scaled_Velocity_Limit is record
-   --     Scale : Position_Scale := [others => 0.0];
-   --     Vel   : Velocity := 0.0 * mm / s;
-   --  end record;
-
-   --  type Scaled_Velocities_Max_Array_Index is range 1 .. 8;
-   --  type Scaled_Velocities_Max_Array is array (Scaled_Velocities_Max_Array_Index) of Scaled_Velocity_Limit;
-
    type Kinematic_Limits is record
-      --  Scaled_Velocities_Max   : Scaled_Velocities_Max_Array;
       Acceleration_Max : Acceleration := 0.0 * mm / s**2;
       Jerk_Max         : Jerk         := 0.0 * mm / s**3;
       Snap_Max         : Snap         := 0.0 * mm / s**4;

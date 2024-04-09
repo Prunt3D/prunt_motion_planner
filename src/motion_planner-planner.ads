@@ -13,20 +13,22 @@ generic
    Preprocessor_Minimum_Move_Distance : Length := 0.001 * mm;
    Corner_Blender_Do_Shifting : Boolean := True; --  TODO: Make this configurable at runtime.
    Corner_Blender_Max_Computational_Error : Length := 0.001 * mm;
-   Corner_Blender_Max_Secondary_Angle_To_Blend : Angle := 89.5 * deg;
+   Corner_Blender_Min_Corner_Angle_To_Blend : Angle := 1.0 * deg;
    Input_Queue_Length : Ada.Containers.Count_Type := 1_000;
    Output_Queue_Length : Ada.Containers.Count_Type := 3;
 package Motion_Planner.Planner is
 
-   type Command_Kind is (Move_Kind, Flush_Kind, Flush_And_Reset_Position_Kind);
+   type Command_Kind is (Move_Kind, Flush_Kind, Flush_And_Reset_Position_Kind, Flush_And_Change_Limits_Kind);
 
    type Command (Kind : Command_Kind := Move_Kind) is record
       case Kind is
-         when Flush_Kind | Flush_And_Reset_Position_Kind =>
+         when Flush_Kind | Flush_And_Reset_Position_Kind | Flush_And_Change_Limits_Kind =>
             Flush_Extra_Data : Flush_Extra_Data_Type;
             case Kind is
                when Flush_And_Reset_Position_Kind =>
                   Reset_Pos : Position;
+               when Flush_And_Change_Limits_Kind =>
+                  New_Limits : Kinematic_Limits;
                when others =>
                   null;
             end case;
@@ -46,20 +48,38 @@ package Motion_Planner.Planner is
    --  N_Corners may be 0 or 1, in which case there are no segments.
 
    --  First Finishing_Corner = 2. If N_Corners < 2 then these functions must not be called.
+
    function Segment_Time (Block : Execution_Block; Finishing_Corner : Corners_Index) return Time;
+   --  Returns the total time for a given segment.
+
    function Segment_Corner_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length;
+   --  Returns the distance between the two original corners for a given segment.
+
    function Segment_Pos_At_Time
      (Block              :     Execution_Block;
       Finishing_Corner   :     Corners_Index;
       Time_Into_Segment  :     Time;
       Is_Past_Accel_Part : out Boolean)
-      return Position;
+     return Position;
+   --  Returns the position at a given time in to a segment. Is_Past_Accel_Part indicates if the given time is past the
+   --  acceleration part of the segment.
+
    function Next_Block_Pos (Block : Execution_Block) return Position;
+   --  Returns the start position of the next block. At the end of a block, the motion executor should assume it is at
+   --  this position, even if is not.
+
    function Flush_Extra_Data (Block : Execution_Block) return Flush_Extra_Data_Type;
+   --  Return the data passed to the Enqueue procedure, or Flush_Extra_Data_Default if the block was filled before
+   --  receiving a flush command.
+
    function Segment_Accel_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length;
+   --  Returns the length of the acceleration part of a segment.
 
    procedure Enqueue (Comm : Command);
+   --  Send a new command to the planner queue. May be called before Setup, but will block once the queue if full.
+
    procedure Dequeue (Block : out Execution_Block);
+   --  Pop a block from the queue of processed blocks. Will block until a block is ready.
 
 private
    use Motion_Planner.PH_Beziers;
@@ -70,8 +90,6 @@ private
 
    --  Corner_Blender
    type Block_Beziers is array (Corners_Index range <>) of PH_Bezier;
-   type Block_Shifted_Corners is array (Corners_Index range <>) of Scaled_Position;
-   type Block_Shifted_Corner_Error_Limits is array (Corners_Index range <>) of Length;
 
    --  Feedrate_Profile_Generator
    type Block_Feedrate_Profiles is array (Corners_Index range <>) of Feedrate_Profile;
@@ -93,13 +111,11 @@ private
       Next_Block_Pos    : Scaled_Position;
       Scaler            : Position_Offset_And_Scale;
       Limits            : Kinematic_Limits;
-      Corners           : Block_Plain_Corners (1 .. N_Corners);
-      Segment_Feedrates : Block_Segment_Feedrates (2 .. N_Corners);
+      Corners           : Block_Plain_Corners (1 .. N_Corners);  --  Adjusted with scaler.
+      Segment_Feedrates : Block_Segment_Feedrates (2 .. N_Corners);  -- Adjusted with scaler.
 
       --  Corner_Blender
-      Beziers                     : Block_Beziers (1 .. N_Corners);
-      Shifted_Corners             : Block_Shifted_Corners (1 .. N_Corners);
-      Shifted_Corner_Error_Limits : Block_Shifted_Corner_Error_Limits (1 .. N_Corners);
+      Beziers : Block_Beziers (1 .. N_Corners);
 
       --  Kinematic_Limiter
       Corner_Velocity_Limits : Block_Corner_Velocity_Limits (1 .. N_Corners);
@@ -108,18 +124,12 @@ private
       Feedrate_Profiles : Block_Feedrate_Profiles (2 .. N_Corners);
    end record;
 
-   package Command_Queues_Interface is new Ada.Containers.Synchronized_Queue_Interfaces (Command);
-   package Command_Queues is new Ada.Containers.Bounded_Synchronized_Queues
-     (Command_Queues_Interface, Input_Queue_Length);
-
-   Command_Queue : Command_Queues.Queue;
-
    --  TODO: It might make sense to create a custom type here that can hold n bytes rather than n records so lots of
    --  small blocks may be queued if the planner is flushed often.
    package Execution_Block_Queues_Interface is new Ada.Containers.Synchronized_Queue_Interfaces (Execution_Block);
    package Execution_Block_Queues is new Ada.Containers.Bounded_Synchronized_Queues
      (Execution_Block_Queues_Interface, Output_Queue_Length);
 
-   Execution_Block_Queue : Execution_Block_Queues.Queue;
+   Execution_Block_Queue : access Execution_Block_Queues.Queue := new Execution_Block_Queues.Queue;
 
 end Motion_Planner.Planner;
