@@ -34,8 +34,8 @@ package body Motion_Planner.Planner.Corner_Blender is
          Last_Comp_Error := 0.0 * mm;
 
          for I in Block.Corners'First + 1 .. Block.Corners'Last - 1 loop
-            if Angle_Elementary_Functions.Cos (Corner_Blender_Min_Corner_Angle_To_Blend) <
-              Cosine_Corner_Angle (Block.Corners (I - 1), Block.Corners (I), Block.Corners (I + 1))
+            if Angle_Elementary_Functions.Sin (Corner_Blender_Max_Secondary_Angle_To_Blend) <
+              Sine_Secondary_Angle (Block.Corners (I - 1), Block.Corners (I), Block.Corners (I + 1))
             then
                Block.Beziers (I) := Create_Bezier (Block.Corners (I), Block.Corners (I), Block.Corners (I), 0.0 * mm);
             else
@@ -83,13 +83,6 @@ package body Motion_Planner.Planner.Corner_Blender is
          return (0.5 + A / B)**(1 / 2);
       end if;
    end Sine_Secondary_Angle;
-
-   function Cosine_Corner_Angle (Start, Corner, Finish : Scaled_Position) return Dimensionless is
-      V1 : constant Scaled_Position_Offset := Start - Corner;
-      V2 : constant Scaled_Position_Offset := Finish - Corner;
-   begin
-      return Dot (V1 / abs V1, V2 / abs V2);
-   end Cosine_Corner_Angle;
 
    function Unit_Bisector (Start, Corner, Finish : Scaled_Position) return Position_Scale is
       A        : constant Scaled_Position_Offset := Start - Corner;

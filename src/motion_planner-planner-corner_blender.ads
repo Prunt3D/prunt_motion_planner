@@ -16,9 +16,6 @@ private
    --  (Start, Corner) and (Corner, Finish). The input vectors do not need to be normalised, this is done by the
    --  function.
 
-   function Cosine_Corner_Angle (Start, Corner, Finish : Scaled_Position) return Dimensionless;
-   --  Compute the cosine of the corner angle.
-
    function Unit_Bisector (Start, Corner, Finish : Scaled_Position) return Position_Scale;
    --  Compute the unit vector that bisects the given corner.
 

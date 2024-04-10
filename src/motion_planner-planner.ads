@@ -13,7 +13,7 @@ generic
    Preprocessor_Minimum_Move_Distance : Length := 0.001 * mm;
    Corner_Blender_Do_Shifting : Boolean := True; --  TODO: Make this configurable at runtime.
    Corner_Blender_Max_Computational_Error : Length := 0.001 * mm;
-   Corner_Blender_Min_Corner_Angle_To_Blend : Angle := 1.0 * deg;
+   Corner_Blender_Max_Secondary_Angle_To_Blend : Angle := 89.5 * deg;
    Input_Queue_Length : Ada.Containers.Count_Type := 1_000;
    Output_Queue_Length : Ada.Containers.Count_Type := 3;
 package Motion_Planner.Planner is
