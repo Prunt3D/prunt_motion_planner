@@ -23,31 +23,35 @@ package body Motion_Planner.Planner is
    end Dequeue;
 
    task body Runner is
-      Working : access Execution_Block := new Execution_Block;
+      type Block_Wrapper is record
+         Block : aliased Execution_Block;
+      end record;
+
+      Working : access Block_Wrapper := new Block_Wrapper;
    begin
       accept Setup (In_Scaler : Position_Scale; In_Limits : Kinematic_Limits) do
          My_Preprocessor.Setup (In_Limits, (Offset => [others => Length (0.0)], Scale => In_Scaler));
       end Setup;
 
       loop
-         My_Preprocessor.Run (Working.all);
+         My_Preprocessor.Run (Working.Block);
 
-         if Is_Homing_Move (Working.Flush_Extra_Data) and Working.N_Corners /= 2 then
+         if Is_Homing_Move (Working.Block.Flush_Extra_Data) and Working.Block.N_Corners /= 2 then
             raise Constraint_Error with "Homing move must have exactly 2 corners.";
          end if;
 
-         My_Corner_Blender.Run (Working.all);
+         My_Corner_Blender.Run (Working.Block);
          loop
-            My_Kinematic_Limiter.Run (Working.all);
-            My_Feedrate_Profile_Generator.Run (Working.all);
+            My_Kinematic_Limiter.Run (Working.Block);
+            My_Feedrate_Profile_Generator.Run (Working.Block);
 
-            exit when (not Is_Homing_Move (Working.Flush_Extra_Data))
-              or else Working.Feedrate_Profiles (2).Coast >= Home_Move_Minimum_Coast_Time;
+            exit when (not Is_Homing_Move (Working.Block.Flush_Extra_Data))
+              or else Working.Block.Feedrate_Profiles (2).Coast >= Home_Move_Minimum_Coast_Time;
 
-            Working.Segment_Feedrates (2) := Working.Segment_Feedrates (2) * 0.9;
+            Working.Block.Segment_Feedrates (2) := Working.Block.Segment_Feedrates (2) * 0.9;
          end loop;
 
-         Execution_Block_Queue.Enqueue (Working.all);
+         Execution_Block_Queue.Enqueue (Working.Block);
       end loop;
    exception
       when E : others =>
