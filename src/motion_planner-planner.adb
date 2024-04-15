@@ -129,7 +129,7 @@ package body Motion_Planner.Planner is
            Tangent_At_Distance
              (Block.Beziers (Finishing_Corner - 1),
               Distance + Distance_At_T (Block.Beziers (Finishing_Corner - 1), 0.5));
-      elsif Distance < Start_Curve_Half_Distance + Mid_Distance then
+      elsif Distance < Start_Curve_Half_Distance + Mid_Distance or End_Curve_Half_Distance = 0.0 * mm then
          Pos     :=
            Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) +
            (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) -
