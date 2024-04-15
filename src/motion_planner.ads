@@ -23,12 +23,20 @@ with Physical_Types; use Physical_Types;
 
 package Motion_Planner is
 
-   type Kinematic_Limits is record
-      Acceleration_Max : Acceleration := 0.0 * mm / s**2;
-      Jerk_Max         : Jerk         := 0.0 * mm / s**3;
-      Snap_Max         : Snap         := 0.0 * mm / s**4;
-      Crackle_Max      : Crackle      := 0.0 * mm / s**5;
-      Chord_Error_Max  : Length       := 0.0 * mm;
+   type Kinematic_Parameters is record
+      Lower_Pos_Limit         : Position         := [others => 0.0 * mm];
+      Upper_Pos_Limit         : Position         := [others => 0.0 * mm];
+      Ignore_E_In_XYZE        : Boolean          := False;
+      Shift_Blended_Corners   : Boolean          := True;
+      Tangential_Velocity_Max : Velocity         := 0.0 * mm / s;
+      Axial_Velocity_Maxes    : Axial_Velocities := [others => 0.0 * mm / s];
+      Pressure_Advance_Time   : Time             := 0.0 * s;
+      Acceleration_Max        : Acceleration     := 0.0 * mm / s**2;
+      Jerk_Max                : Jerk             := 0.0 * mm / s**3;
+      Snap_Max                : Snap             := 0.0 * mm / s**4;
+      Crackle_Max             : Crackle          := 0.0 * mm / s**5;
+      Chord_Error_Max         : Length           := 0.0 * mm;
+      Higher_Order_Scaler     : Position_Scale   := [others => 1.0];
    end record;
 
    type Max_Corners_Type is range 2 .. 2**63 - 1;
@@ -40,11 +48,6 @@ package Motion_Planner is
       Accel : Feedrate_Profile_Times;
       Coast : Time;
       Decel : Feedrate_Profile_Times;
-   end record;
-
-   type Position_Offset_And_Scale is record
-      Offset : Position_Offset;
-      Scale  : Position_Scale;
    end record;
 
    function Fast_Distance_At_Max_Time
@@ -84,8 +87,5 @@ package Motion_Planner is
       Start_Vel          :     Velocity;
       Is_Past_Accel_Part : out Boolean)
       return Length;
-
-   function Convert (Scaler : Position_Offset_And_Scale; Pos : Position) return Scaled_Position;
-   function Convert (Scaler : Position_Offset_And_Scale; Pos : Scaled_Position) return Position;
 
 end Motion_Planner;

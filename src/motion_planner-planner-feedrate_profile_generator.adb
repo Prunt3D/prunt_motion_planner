@@ -42,15 +42,15 @@ package body Motion_Planner.Planner.Feedrate_Profile_Generator is
             Profile : constant Feedrate_Profile_Times :=
               Optimal_Profile_For_Delta_V
                 (Block.Corner_Velocity_Limits (I - 1) - Block.Corner_Velocity_Limits (I),
-                 Block.Limits.Acceleration_Max,
-                 Block.Limits.Jerk_Max,
-                 Block.Limits.Snap_Max,
-                 Block.Limits.Crackle_Max);
+                 Block.Params.Acceleration_Max,
+                 Block.Params.Jerk_Max,
+                 Block.Params.Snap_Max,
+                 Block.Params.Crackle_Max);
 
             Accel_Profile_Distance : constant Length :=
-              Fast_Distance_At_Max_Time (Profile, Block.Limits.Crackle_Max, Block.Corner_Velocity_Limits (I - 1));
+              Fast_Distance_At_Max_Time (Profile, Block.Params.Crackle_Max, Block.Corner_Velocity_Limits (I - 1));
             Decel_Profile_Distance : constant Length :=
-              Fast_Distance_At_Max_Time (Profile, -Block.Limits.Crackle_Max, Block.Corner_Velocity_Limits (I - 1));
+              Fast_Distance_At_Max_Time (Profile, -Block.Params.Crackle_Max, Block.Corner_Velocity_Limits (I - 1));
 
             Curve_Distance : constant Length := Curve_Corner_Distance (I);
          begin
@@ -60,25 +60,25 @@ package body Motion_Planner.Planner.Feedrate_Profile_Generator is
          Block.Feedrate_Profiles (I).Accel :=
            Optimal_Profile_For_Delta_V
              (Block.Corner_Velocity_Limits (I - 1) - Block.Segment_Feedrates (I),
-              Block.Limits.Acceleration_Max,
-              Block.Limits.Jerk_Max,
-              Block.Limits.Snap_Max,
-              Block.Limits.Crackle_Max);
+              Block.Params.Acceleration_Max,
+              Block.Params.Jerk_Max,
+              Block.Params.Snap_Max,
+              Block.Params.Crackle_Max);
          Block.Feedrate_Profiles (I).Decel :=
            Optimal_Profile_For_Delta_V
              (Block.Corner_Velocity_Limits (I) - Block.Segment_Feedrates (I),
-              Block.Limits.Acceleration_Max,
-              Block.Limits.Jerk_Max,
-              Block.Limits.Snap_Max,
-              Block.Limits.Crackle_Max);
+              Block.Params.Acceleration_Max,
+              Block.Params.Jerk_Max,
+              Block.Params.Snap_Max,
+              Block.Params.Crackle_Max);
 
          declare
             Accel_Distance : Length            :=
               Fast_Distance_At_Max_Time
-                (Block.Feedrate_Profiles (I).Accel, Block.Limits.Crackle_Max, Block.Corner_Velocity_Limits (I - 1));
+                (Block.Feedrate_Profiles (I).Accel, Block.Params.Crackle_Max, Block.Corner_Velocity_Limits (I - 1));
             Coast_Velocity : constant Velocity := Block.Segment_Feedrates (I);
             Decel_Distance : Length            :=
-              Fast_Distance_At_Max_Time (Block.Feedrate_Profiles (I).Decel, -Block.Limits.Crackle_Max, Coast_Velocity);
+              Fast_Distance_At_Max_Time (Block.Feedrate_Profiles (I).Decel, -Block.Params.Crackle_Max, Coast_Velocity);
             Curve_Distance : constant Length   := Curve_Corner_Distance (I);
          begin
             if Accel_Distance + Decel_Distance <= Curve_Distance then
@@ -109,27 +109,27 @@ package body Motion_Planner.Planner.Feedrate_Profile_Generator is
                      Block.Feedrate_Profiles (I).Accel :=
                        Optimal_Profile_For_Delta_V
                          (Block.Corner_Velocity_Limits (I - 1) - Mid,
-                          Block.Limits.Acceleration_Max,
-                          Block.Limits.Jerk_Max,
-                          Block.Limits.Snap_Max,
-                          Block.Limits.Crackle_Max);
+                          Block.Params.Acceleration_Max,
+                          Block.Params.Jerk_Max,
+                          Block.Params.Snap_Max,
+                          Block.Params.Crackle_Max);
                      Block.Feedrate_Profiles (I).Decel :=
                        Optimal_Profile_For_Delta_V
                          (Block.Corner_Velocity_Limits (I) - Mid,
-                          Block.Limits.Acceleration_Max,
-                          Block.Limits.Jerk_Max,
-                          Block.Limits.Snap_Max,
-                          Block.Limits.Crackle_Max);
+                          Block.Params.Acceleration_Max,
+                          Block.Params.Jerk_Max,
+                          Block.Params.Snap_Max,
+                          Block.Params.Crackle_Max);
 
                      Accel_Distance :=
                        Fast_Distance_At_Max_Time
                          (Block.Feedrate_Profiles (I).Accel,
-                          Block.Limits.Crackle_Max,
+                          Block.Params.Crackle_Max,
                           Block.Corner_Velocity_Limits (I - 1));
                      Decel_Distance :=
                        Fast_Distance_At_Max_Time
                          (Block.Feedrate_Profiles (I).Decel,
-                          Block.Limits.Crackle_Max,
+                          Block.Params.Crackle_Max,
                           Block.Corner_Velocity_Limits (I));
 
                      if Accel_Distance + Decel_Distance <= Curve_Distance then

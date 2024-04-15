@@ -32,24 +32,23 @@ generic
    with function Is_Homing_Move (Data : Flush_Extra_Data_Type) return Boolean;
    Max_Corners : Max_Corners_Type := 50_000;
    Preprocessor_Minimum_Move_Distance : Length := 0.001 * mm;
-   Corner_Blender_Do_Shifting : Boolean := True; --  TODO: Make this configurable at runtime.
    Corner_Blender_Max_Computational_Error : Length := 0.001 * mm;
    Corner_Blender_Max_Secondary_Angle_To_Blend : Angle := 89.5 * deg;
    Input_Queue_Length : Ada.Containers.Count_Type := 1_000;
    Output_Queue_Length : Ada.Containers.Count_Type := 3;
 package Motion_Planner.Planner is
 
-   type Command_Kind is (Move_Kind, Flush_Kind, Flush_And_Reset_Position_Kind, Flush_And_Change_Limits_Kind);
+   type Command_Kind is (Move_Kind, Flush_Kind, Flush_And_Reset_Position_Kind, Flush_And_Change_Parameters_Kind);
 
    type Command (Kind : Command_Kind := Move_Kind) is record
       case Kind is
-         when Flush_Kind | Flush_And_Reset_Position_Kind | Flush_And_Change_Limits_Kind =>
+         when Flush_Kind | Flush_And_Reset_Position_Kind | Flush_And_Change_Parameters_Kind =>
             Flush_Extra_Data : Flush_Extra_Data_Type;
             case Kind is
                when Flush_And_Reset_Position_Kind =>
                   Reset_Pos : Position;
-               when Flush_And_Change_Limits_Kind =>
-                  New_Limits : Kinematic_Limits;
+               when Flush_And_Change_Parameters_Kind =>
+                  New_Params : Kinematic_Parameters;
                when others =>
                   null;
             end case;
@@ -62,7 +61,7 @@ package Motion_Planner.Planner is
    type Corners_Index is new Max_Corners_Type'Base range 0 .. Max_Corners;
 
    task Runner is
-      entry Setup (In_Scaler : Position_Scale; In_Limits : Kinematic_Limits);
+      entry Setup (In_Params : Kinematic_Parameters);
    end Runner;
 
    type Execution_Block (N_Corners : Corners_Index := 0) is private;
@@ -96,7 +95,7 @@ package Motion_Planner.Planner is
    function Segment_Accel_Distance (Block : Execution_Block; Finishing_Corner : Corners_Index) return Length;
    --  Returns the length of the acceleration part of a segment.
 
-   procedure Enqueue (Comm : Command);
+   procedure Enqueue (Comm : Command; Ignore_Bounds : Boolean := False);
    --  Send a new command to the planner queue. May be called before Setup, but will block once the queue if full.
 
    procedure Dequeue (Block : out Execution_Block);
@@ -130,8 +129,7 @@ private
       --  Preprocessor
       Flush_Extra_Data  : Flush_Extra_Data_Type;
       Next_Block_Pos    : Scaled_Position;
-      Scaler            : Position_Offset_And_Scale;
-      Limits            : Kinematic_Limits;
+      Params            : Kinematic_Parameters;
       Corners           : Block_Plain_Corners (1 .. N_Corners);  --  Adjusted with scaler.
       Segment_Feedrates : Block_Segment_Feedrates (2 .. N_Corners);  -- Adjusted with scaler.
 

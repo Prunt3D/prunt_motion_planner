@@ -27,13 +27,36 @@ package body Motion_Planner.Planner.Corner_Blender is
 
    procedure Run (Block : in out Execution_Block) is
       Last_Comp_Error : Length := 0.0 * mm;
+
+      function Allow_Corner_Shift (I : Corners_Index) return Boolean is
+         Unscaled_Corner : Position := Position (Block.Corners (I) / Block.Params.Higher_Order_Scaler);
+      begin
+         if not Block.Params.Shift_Blended_Corners then
+            return False;
+         end if;
+
+         --  If all virtual corners are within the allowed volume, then no point on any curve will be outside of the
+         --  allowed volume.
+         --
+         --  TODO: More advanced corner shifting that allows for virtual corners to be outside the volume when the
+         --  curve is fully inside the volume.
+         for A in Axis_Name loop
+            if Unscaled_Corner (A) - Block.Params.Chord_Error_Max < Block.Params.Lower_Pos_Limit (A) or
+              Unscaled_Corner (A) + Block.Params.Chord_Error_Max > Block.Params.Upper_Pos_Limit (A)
+            then
+               return False;
+            end if;
+         end loop;
+
+         return True;
+      end Allow_Corner_Shift;
    begin
       for I in Block.Corners'Range loop
          Shifted_Corners (I) := Block.Corners (I);
       end loop;
 
       for I in Block.Corners'First + 1 .. Block.Corners'Last - 1 loop
-         Shifted_Corner_Error_Limits (I) := Block.Limits.Chord_Error_Max;
+         Shifted_Corner_Error_Limits (I) := Block.Params.Chord_Error_Max;
       end loop;
       Shifted_Corner_Error_Limits (Block.Corners'First) := 0.0 * mm;
       Shifted_Corner_Error_Limits (Block.Corners'Last)  := 0.0 * mm;
@@ -66,11 +89,13 @@ package body Motion_Planner.Planner.Corner_Blender is
                     Shifted_Corners (I),
                     Shifted_Corners (I + 1),
                     Shifted_Corner_Error_Limits (I));
-               Last_Comp_Error := Length'Max (Last_Comp_Error, abs (Midpoint (Block.Beziers (I)) - Block.Corners (I)));
+               if Allow_Corner_Shift (I) then
+                  Last_Comp_Error :=
+                    Length'Max (Last_Comp_Error, abs (Midpoint (Block.Beziers (I)) - Block.Corners (I)));
+               end if;
             end if;
          end loop;
 
-         exit when not Corner_Blender_Do_Shifting;
          exit when Last_Comp_Error <= Corner_Blender_Max_Computational_Error;
 
          for I in Block.Corners'First + 1 .. Block.Corners'Last - 1 loop
@@ -78,14 +103,16 @@ package body Motion_Planner.Planner.Corner_Blender is
          end loop;
 
          for I in Block.Corners'First + 1 .. Block.Corners'Last - 1 loop
-            declare
-               Start  : constant Scaled_Position := Shifted_Corners (I - 1);
-               Corner : constant Scaled_Position := Shifted_Corners (I);
-               Finish : constant Scaled_Position := Shifted_Corners (I + 1);
-            begin
-               Shifted_Corner_Error_Limits (I) :=
-                 abs Dot (Block.Corners (I) - Shifted_Corners (I), Unit_Bisector (Start, Corner, Finish));
-            end;
+            if Allow_Corner_Shift (I) then
+               declare
+                  Start  : constant Scaled_Position := Shifted_Corners (I - 1);
+                  Corner : constant Scaled_Position := Shifted_Corners (I);
+                  Finish : constant Scaled_Position := Shifted_Corners (I + 1);
+               begin
+                  Shifted_Corner_Error_Limits (I) :=
+                    abs Dot (Block.Corners (I) - Shifted_Corners (I), Unit_Bisector (Start, Corner, Finish));
+               end;
+            end if;
          end loop;
       end loop;
    end Run;

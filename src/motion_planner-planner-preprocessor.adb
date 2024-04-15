@@ -21,37 +21,53 @@
 
 package body Motion_Planner.Planner.Preprocessor is
 
-   procedure Enqueue (Comm : Command) is
+   procedure Enqueue (Comm : Command; Ignore_Bounds : Boolean := False) is
    begin
+      case Comm.Kind is
+         when Flush_Kind =>
+            null;
+         when Flush_And_Reset_Position_Kind =>
+            if not Ignore_Bounds then
+               Check_Bounds (Comm.Reset_Pos);
+            end if;
+         when Flush_And_Change_Parameters_Kind =>
+            if (Comm.New_Params.Higher_Order_Scaler /= Params.Higher_Order_Scaler) then
+               raise Constraint_Error with "Changing of the scaler at runtime is not currently supported.";
+            end if;
+         when Move_Kind =>
+            if not Ignore_Bounds then
+               Check_Bounds (Comm.Pos);
+            end if;
+      end case;
+
       Command_Queue.Enqueue (Comm);
    end Enqueue;
 
-   procedure Setup (Initial_Limits : Kinematic_Limits; Initial_Scaler : Position_Offset_And_Scale) is
+   procedure Setup (Initial_Parameters : Kinematic_Parameters) is
    begin
       if Setup_Done then
          raise Constraint_Error with "Setup already called.";
       end if;
 
-      Limits     := Initial_Limits;
-      Scaler     := Initial_Scaler;
-      Last_Pos   := Convert (Scaler, Initial_Position);
+      Params := Initial_Parameters;
+
       Setup_Done := True;
    end Setup;
 
    procedure Run (Block : aliased out Execution_Block) is
       Flush_Extra_Data : Flush_Extra_Data_Type := Flush_Extra_Data_Default;
-      N_Corners        : Corners_Index         := 1;
+      N_Corners        : Corners_Index := 1;
       Block_N_Corners  : Corners_Index with
         Address => Block.N_Corners'Address;
-      Next_Limits      : Kinematic_Limits;
+      Next_Params      : Kinematic_Parameters;
    begin
       if not Setup_Done then
          raise Constraint_Error with "Setup not done.";
       end if;
 
-      Next_Limits := Limits;
+      Next_Params := Params;
 
-      Corners (1) := Last_Pos;
+      Corners (1) := Last_Pos * Params.Higher_Order_Scaler;
 
       loop
          declare
@@ -65,31 +81,34 @@ package body Motion_Planner.Planner.Preprocessor is
                   exit;
                when Flush_And_Reset_Position_Kind =>
                   Flush_Extra_Data := Next_Command.Flush_Extra_Data;
-                  Last_Pos         := Convert (Scaler, Next_Command.Reset_Pos);
+                  Last_Pos         := Next_Command.Reset_Pos;
                   exit;
-               when Flush_And_Change_Limits_Kind =>
+               when Flush_And_Change_Parameters_Kind =>
                   Flush_Extra_Data := Next_Command.Flush_Extra_Data;
-                  Next_Limits      := Next_Command.New_Limits;
+                  Next_Params      := Next_Command.New_Params;
                   exit;
                when Move_Kind =>
-                  if abs (Convert (Scaler, Last_Pos) - Next_Command.Pos) >= Preprocessor_Minimum_Move_Distance then
+                  if abs (Last_Pos - Next_Command.Pos) >= Preprocessor_Minimum_Move_Distance then
                      N_Corners           := N_Corners + 1;
-                     Last_Pos            := Convert (Scaler, Next_Command.Pos);
-                     Corners (N_Corners) := Convert (Scaler, Next_Command.Pos);
+                     Corners (N_Corners) := Next_Command.Pos * Params.Higher_Order_Scaler;
 
                      --  Adjust tangential velocity limit to account for scale.
                      declare
-                        Unscaled_Distance : constant Length :=
-                          abs (Convert (Scaler, Corners (N_Corners - 1)) - Convert (Scaler, Corners (N_Corners)));
+                        Unscaled_Offset   : constant Position_Offset := Last_Pos - Next_Command.Pos;
+                        Unscaled_Distance : constant Length          := abs (Unscaled_Offset);
                         Scaled_Distance   : constant Length := abs (Corners (N_Corners - 1) - Corners (N_Corners));
                      begin
                         if Unscaled_Distance = 0.0 * mm then
-                           Segment_Feedrates (N_Corners) := Next_Command.Feedrate;
+                           Segment_Feedrates (N_Corners) := 0.0 * mm / s;
                         else
                            Segment_Feedrates (N_Corners) :=
-                             Next_Command.Feedrate * (Scaled_Distance / Unscaled_Distance);
+                             Enforce_Feedrate_Limits (Unscaled_Offset, Next_Command.Feedrate) *
+                             (Scaled_Distance / Unscaled_Distance);
                         end if;
                      end;
+
+                     Last_Pos := Next_Command.Pos;
+
                      exit when N_Corners = Corners_Index'Last;
                   end if;
             end case;
@@ -102,11 +121,41 @@ package body Motion_Planner.Planner.Preprocessor is
       Block.Corners           := Corners (1 .. N_Corners);
       Block.Segment_Feedrates := Segment_Feedrates (2 .. N_Corners);
       Block.Flush_Extra_Data  := Flush_Extra_Data;
-      Block.Next_Block_Pos    := Last_Pos;
-      Block.Scaler            := Scaler;
-      Block.Limits            := Limits;
+      Block.Next_Block_Pos    := Last_Pos * Params.Higher_Order_Scaler;
+      Block.Params            := Params;
 
-      Limits := Next_Limits;
+      Params := Next_Params;
    end Run;
+
+   procedure Check_Bounds (Pos : Position) is
+   begin
+      for I in Axis_Name loop
+         if Pos (I) < Params.Lower_Pos_Limit (I) or Pos (I) > Params.Upper_Pos_Limit (I) then
+            raise Constraint_Error with "Position is out of bounds (" & I'Image & " = " & Pos (I)'Image & ").";
+         end if;
+      end loop;
+   end Check_Bounds;
+
+   function Enforce_Feedrate_Limits (Offset : Position_Offset; Feedrate : Velocity) return Velocity is
+      Has_XYZ : Boolean := [Offset with delta E_Axis => 0.0 * mm] /= Position_Offset'[others => Length (0.0)];
+      Limited_Feedrate : Velocity := Feedrate;
+   begin
+      if Params.Ignore_E_In_XYZE and Has_XYZ and Limited_Feedrate /= Velocity'Last then
+         Limited_Feedrate := Limited_Feedrate * abs Offset / abs [Offset with delta E_Axis => 0.0 * mm];
+      end if;
+
+      if Limited_Feedrate > Params.Tangential_Velocity_Max then
+         Limited_Feedrate := Params.Tangential_Velocity_Max;
+      end if;
+
+      for I in Axis_Name loop
+         if abs Offset (I) > 0.0 * mm then
+            Limited_Feedrate :=
+              Velocity'Min (Limited_Feedrate, Params.Axial_Velocity_Maxes (I) * abs Offset / abs Offset (I));
+         end if;
+      end loop;
+
+      return Limited_Feedrate;
+   end Enforce_Feedrate_Limits;
 
 end Motion_Planner.Planner.Preprocessor;

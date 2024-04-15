@@ -779,14 +779,4 @@ package body Motion_Planner is
       end if;
    end Distance_At_Time;
 
-   function Convert (Scaler : Position_Offset_And_Scale; Pos : Position) return Scaled_Position is
-   begin
-      return (Pos + Scaler.Offset) * Scaler.Scale;
-   end Convert;
-
-   function Convert (Scaler : Position_Offset_And_Scale; Pos : Scaled_Position) return Position is
-   begin
-      return Position (Pos / Scaler.Scale) - Scaler.Offset;
-   end Convert;
-
 end Motion_Planner;

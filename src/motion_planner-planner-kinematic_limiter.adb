@@ -50,10 +50,10 @@ package body Motion_Planner.Planner.Kinematic_Limiter is
             --  Inverse curvature range is 0..Length'Last. Make sure to avoid overflow here.  GCC with optimisation
             --  enabled may transform sqrt(x)*sqrt(y) to sqrt(x*y) etc., but that should be fine in optimised builds
             --  with Ada's checks disabled as the Velocity'Min call will immediately discard the resulting infinity.
-            Limit := Velocity'Min (Limit, Block.Limits.Acceleration_Max**(1 / 2) * Inverse_Curvature**(1 / 2));
-            Limit := Velocity'Min (Limit, Block.Limits.Jerk_Max**(1 / 3) * Inverse_Curvature**(2 / 3));
-            Limit := Velocity'Min (Limit, Block.Limits.Snap_Max**(1 / 4) * Inverse_Curvature**(3 / 4));
-            Limit := Velocity'Min (Limit, Block.Limits.Crackle_Max**(1 / 5) * Inverse_Curvature**(4 / 5));
+            Limit := Velocity'Min (Limit, Block.Params.Acceleration_Max**(1 / 2) * Inverse_Curvature**(1 / 2));
+            Limit := Velocity'Min (Limit, Block.Params.Jerk_Max**(1 / 3) * Inverse_Curvature**(2 / 3));
+            Limit := Velocity'Min (Limit, Block.Params.Snap_Max**(1 / 4) * Inverse_Curvature**(3 / 4));
+            Limit := Velocity'Min (Limit, Block.Params.Crackle_Max**(1 / 5) * Inverse_Curvature**(4 / 5));
 
             --  TODO: Add limit based on interpolation time.
             --  TODO: Snap and crackle limits currently do not match the paper and are likely overly conservative.
@@ -62,15 +62,15 @@ package body Motion_Planner.Planner.Kinematic_Limiter is
               Optimal_Profile_For_Distance
                 (Block.Corner_Velocity_Limits (I - 1),
                  Curve_Corner_Distance (I),
-                 Block.Limits.Acceleration_Max,
-                 Block.Limits.Jerk_Max,
-                 Block.Limits.Snap_Max,
-                 Block.Limits.Crackle_Max);
+                 Block.Params.Acceleration_Max,
+                 Block.Params.Jerk_Max,
+                 Block.Params.Snap_Max,
+                 Block.Params.Crackle_Max);
             Limit           :=
               Velocity'Min
                 (Limit,
                  Fast_Velocity_At_Max_Time
-                   (Optimal_Profile, 0.97 * Block.Limits.Crackle_Max, Block.Corner_Velocity_Limits (I - 1)));
+                   (Optimal_Profile, 0.97 * Block.Params.Crackle_Max, Block.Corner_Velocity_Limits (I - 1)));
             --  The 0.97 here ensures that no feedrate profiles end up with a very small accel/decel part which can
             --  lead to numerical errors that cause kinematic limits to be greatly exceeded for a single interpolation
             --  period. If this is removed, then the sanity check in Feedrate_Profile_Generator also needs to be
@@ -90,15 +90,15 @@ package body Motion_Planner.Planner.Kinematic_Limiter is
               Optimal_Profile_For_Distance
                 (Block.Corner_Velocity_Limits (I + 1),
                  Curve_Corner_Distance (I + 1),
-                 Block.Limits.Acceleration_Max,
-                 Block.Limits.Jerk_Max,
-                 Block.Limits.Snap_Max,
-                 Block.Limits.Crackle_Max);
+                 Block.Params.Acceleration_Max,
+                 Block.Params.Jerk_Max,
+                 Block.Params.Snap_Max,
+                 Block.Params.Crackle_Max);
             Block.Corner_Velocity_Limits (I) :=
               Velocity'Min
                 (Block.Corner_Velocity_Limits (I),
                  Fast_Velocity_At_Max_Time
-                   (Optimal_Profile, 0.97 * Block.Limits.Crackle_Max, Block.Corner_Velocity_Limits (I + 1)));
+                   (Optimal_Profile, 0.97 * Block.Params.Crackle_Max, Block.Corner_Velocity_Limits (I + 1)));
          end;
       end loop;
    end Run;

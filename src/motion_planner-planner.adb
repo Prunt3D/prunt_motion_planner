@@ -33,9 +33,9 @@ package body Motion_Planner.Planner is
    package My_Kinematic_Limiter is new Kinematic_Limiter;
    package My_Feedrate_Profile_Generator is new Feedrate_Profile_Generator;
 
-   procedure Enqueue (Comm : Command) is
+   procedure Enqueue (Comm : Command; Ignore_Bounds : Boolean := False) is
    begin
-      My_Preprocessor.Enqueue (Comm);
+      My_Preprocessor.Enqueue (Comm, Ignore_Bounds);
    end Enqueue;
 
    procedure Dequeue (Block : out Execution_Block) is
@@ -50,8 +50,8 @@ package body Motion_Planner.Planner is
 
       Working : access Block_Wrapper := new Block_Wrapper;
    begin
-      accept Setup (In_Scaler : Position_Scale; In_Limits : Kinematic_Limits) do
-         My_Preprocessor.Setup (In_Limits, (Offset => [others => Length (0.0)], Scale => In_Scaler));
+      accept Setup (In_Params : Kinematic_Parameters) do
+         My_Preprocessor.Setup (In_Params);
       end Setup;
 
       loop
@@ -89,8 +89,8 @@ package body Motion_Planner.Planner is
    begin
       return
         abs
-        (Convert (Block.Scaler, Block.Corners (Finishing_Corner)) -
-         Convert (Block.Scaler, Block.Corners (Finishing_Corner - 1)));
+        (Block.Corners (Finishing_Corner) / Block.Params.Higher_Order_Scaler -
+         Block.Corners (Finishing_Corner - 1) / Block.Params.Higher_Order_Scaler);
    end Segment_Corner_Distance;
 
    function Segment_Pos_At_Time
@@ -112,7 +112,7 @@ package body Motion_Planner.Planner is
         Distance_At_Time
           (Block.Feedrate_Profiles (Finishing_Corner),
            Time_Into_Segment,
-           Block.Limits.Crackle_Max,
+           Block.Params.Crackle_Max,
            Block.Corner_Velocity_Limits (Finishing_Corner - 1),
            Is_Past_Accel_Part);
 
@@ -134,12 +134,12 @@ package body Motion_Planner.Planner is
            Point_At_Distance (Block.Beziers (Finishing_Corner), Distance - Start_Curve_Half_Distance - Mid_Distance);
       end if;
 
-      return Convert (Block.Scaler, Pos);
+      return Position (Pos / Block.Params.Higher_Order_Scaler);
    end Segment_Pos_At_Time;
 
    function Next_Block_Pos (Block : Execution_Block) return Position is
    begin
-      return Convert (Block.Scaler, Block.Next_Block_Pos);
+      return Position (Block.Next_Block_Pos / Block.Params.Higher_Order_Scaler);
    end Next_Block_Pos;
 
    function Flush_Extra_Data (Block : Execution_Block) return Flush_Extra_Data_Type is
@@ -153,7 +153,7 @@ package body Motion_Planner.Planner is
         Distance_At_Time
           (Profile     => Block.Feedrate_Profiles (Finishing_Corner),
            T           => Total_Time (Block.Feedrate_Profiles (Finishing_Corner).Accel),
-           Max_Crackle => Block.Limits.Crackle_Max,
+           Max_Crackle => Block.Params.Crackle_Max,
            Start_Vel   => Block.Corner_Velocity_Limits (Finishing_Corner - 1));
    end Segment_Accel_Distance;
 
