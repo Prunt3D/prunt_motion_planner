@@ -116,23 +116,42 @@ package body Motion_Planner.Planner is
            Block.Corner_Velocity_Limits (Finishing_Corner - 1),
            Is_Past_Accel_Part);
 
-      Pos : Scaled_Position;
+      Pos                       : Scaled_Position;
+      Tangent                   : Scaled_Position_Offset;
+      Unscaled_Velocity_Tangent : Axial_Velocities;
    begin
       if Distance < Start_Curve_Half_Distance then
-         Pos :=
+         Pos     :=
            Point_At_Distance
              (Block.Beziers (Finishing_Corner - 1),
               Distance + Distance_At_T (Block.Beziers (Finishing_Corner - 1), 0.5));
+         Tangent :=
+           Tangent_At_Distance
+             (Block.Beziers (Finishing_Corner - 1),
+              Distance + Distance_At_T (Block.Beziers (Finishing_Corner - 1), 0.5));
       elsif Distance < Start_Curve_Half_Distance + Mid_Distance then
-         Pos :=
+         Pos     :=
            Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) +
            (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) -
               Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0)) *
              ((Distance - Start_Curve_Half_Distance) / Mid_Distance);
+         Tangent :=
+           Point_At_T (Block.Beziers (Finishing_Corner), 0.0) - Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0);
       else
-         Pos :=
+         Pos     :=
            Point_At_Distance (Block.Beziers (Finishing_Corner), Distance - Start_Curve_Half_Distance - Mid_Distance);
+         Tangent :=
+           Tangent_At_Distance (Block.Beziers (Finishing_Corner), Distance - Start_Curve_Half_Distance - Mid_Distance);
       end if;
+
+      Unscaled_Velocity_Tangent :=
+        (Tangent / abs Tangent) *
+        Velocity_At_Time
+          (Block.Feedrate_Profiles (Finishing_Corner), Time_Into_Segment, Block.Params.Crackle_Max,
+           Block.Corner_Velocity_Limits (Finishing_Corner - 1)) /
+        Block.Params.Higher_Order_Scaler;
+
+      Pos (E_Axis) := Pos (E_Axis) + Block.Params.Pressure_Advance_Time * Unscaled_Velocity_Tangent (E_Axis);
 
       return Position (Pos / Block.Params.Higher_Order_Scaler);
    end Segment_Pos_At_Time;

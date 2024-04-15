@@ -28,7 +28,9 @@ private package Motion_Planner.PH_Beziers is
    function Inverse_Curvature (Bez : PH_Bezier) return Length;
    function Midpoint (Bez : PH_Bezier) return Scaled_Position;
    function Point_At_T (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position;
+   function Tangent_At_T (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position_Offset;
    function Point_At_Distance (Bez : PH_Bezier; Distance : Length) return Scaled_Position;
+   function Tangent_At_Distance (Bez : PH_Bezier; Distance : Length) return Scaled_Position_Offset;
    function Create_Bezier (Start, Corner, Finish : Scaled_Position; Deviation_Limit : Length) return PH_Bezier;
 
 private

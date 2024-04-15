@@ -105,6 +105,18 @@ package body Motion_Planner.PH_Beziers is
       return Bez_2 (Bez_2'First);
    end Point_At_T;
 
+   function Tangent_At_T (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position_Offset is
+      Bez_2 : PH_Control_Points := Bez.Control_Points;
+   begin
+      for J in reverse Bez_2'First + 1 .. Bez_2'Last - 1 loop
+         for I in Bez_2'First .. J loop
+            Bez_2 (I) := Bez_2 (I) + (Bez_2 (I + 1) - Bez_2 (I)) * T;
+         end loop;
+      end loop;
+
+      return Bez_2 (Bez_2'First + 1) - Bez_2 (Bez_2'First);
+   end Tangent_At_T;
+
    --  This method is slower than Point_At_T on most CPUs, but may be useful if this code is ported to a GPU or FPGA.
    --  It may also be faster for cases where T is known at compile time, but I am not aware of any methods to detect
    --  that with GCC.
@@ -133,6 +145,11 @@ package body Motion_Planner.PH_Beziers is
    begin
       return Point_At_T (Bez, T_At_Distance (Bez, Distance));
    end Point_At_Distance;
+
+   function Tangent_At_Distance (Bez : PH_Bezier; Distance : Length) return Scaled_Position_Offset is
+   begin
+      return Tangent_At_T (Bez, T_At_Distance (Bez, Distance));
+   end Tangent_At_Distance;
 
    function Create_Bezier (Start, Corner, Finish : Scaled_Position; Deviation_Limit : Length) return PH_Bezier is
       function Real_Create_Bezier return PH_Bezier is
