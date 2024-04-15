@@ -24,12 +24,17 @@ with Ada.Unchecked_Conversion;
 package body Motion_Planner.Planner.Feedrate_Profile_Generator is
 
    procedure Run (Block : in out Execution_Block) is
-      function Curve_Corner_Distance (Start, Finish : Corners_Index) return Length is
+      function Curve_Corner_Distance (Finishing_Corner : Corners_Index) return Length is
+         Start_Curve_Half_Distance : constant Length :=
+           Distance_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) -
+           Distance_At_T (Block.Beziers (Finishing_Corner - 1), 0.5);
+         End_Curve_Half_Distance   : constant Length := Distance_At_T (Block.Beziers (Finishing_Corner), 0.5);
+         Mid_Distance              : constant Length :=
+           abs
+           (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) -
+            Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0));
       begin
-         return
-           Distance_At_T (Block.Beziers (Start), 0.5) + Distance_At_T (Block.Beziers (Finish), 1.0) -
-           Distance_At_T (Block.Beziers (Finish), 0.5) +
-           abs (Point_At_T (Block.Beziers (Start), 1.0) - Point_At_T (Block.Beziers (Finish), 0.0));
+         return Start_Curve_Half_Distance + Mid_Distance + End_Curve_Half_Distance;
       end Curve_Corner_Distance;
    begin
       for I in Block.Feedrate_Profiles'Range loop
@@ -47,7 +52,7 @@ package body Motion_Planner.Planner.Feedrate_Profile_Generator is
             Decel_Profile_Distance : constant Length :=
               Fast_Distance_At_Max_Time (Profile, -Block.Limits.Crackle_Max, Block.Corner_Velocity_Limits (I - 1));
 
-            Curve_Distance : constant Length := Curve_Corner_Distance (I - 1, I);
+            Curve_Distance : constant Length := Curve_Corner_Distance (I);
          begin
             pragma Assert (Curve_Distance < Length'Min (Accel_Profile_Distance, Decel_Profile_Distance));
          end;
@@ -74,7 +79,7 @@ package body Motion_Planner.Planner.Feedrate_Profile_Generator is
             Coast_Velocity : constant Velocity := Block.Segment_Feedrates (I);
             Decel_Distance : Length            :=
               Fast_Distance_At_Max_Time (Block.Feedrate_Profiles (I).Decel, -Block.Limits.Crackle_Max, Coast_Velocity);
-            Curve_Distance : constant Length   := Curve_Corner_Distance (I - 1, I);
+            Curve_Distance : constant Length   := Curve_Corner_Distance (I);
          begin
             if Accel_Distance + Decel_Distance <= Curve_Distance then
                Block.Feedrate_Profiles (I).Coast :=

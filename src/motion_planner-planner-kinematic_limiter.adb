@@ -24,12 +24,17 @@ with Ada.Unchecked_Conversion;
 package body Motion_Planner.Planner.Kinematic_Limiter is
 
    procedure Run (Block : in out Execution_Block) is
-      function Curve_Corner_Distance (Start, Finish : Corners_Index) return Length is
+      function Curve_Corner_Distance (Finishing_Corner : Corners_Index) return Length is
+         Start_Curve_Half_Distance : constant Length :=
+           Distance_At_T (Block.Beziers (Finishing_Corner - 1), 1.0) -
+           Distance_At_T (Block.Beziers (Finishing_Corner - 1), 0.5);
+         End_Curve_Half_Distance   : constant Length := Distance_At_T (Block.Beziers (Finishing_Corner), 0.5);
+         Mid_Distance              : constant Length :=
+           abs
+           (Point_At_T (Block.Beziers (Finishing_Corner), 0.0) -
+            Point_At_T (Block.Beziers (Finishing_Corner - 1), 1.0));
       begin
-         return
-           Distance_At_T (Block.Beziers (Start), 0.5) + Distance_At_T (Block.Beziers (Finish), 1.0) -
-           Distance_At_T (Block.Beziers (Finish), 0.5) +
-           abs (Point_At_T (Block.Beziers (Start), 1.0) - Point_At_T (Block.Beziers (Finish), 0.0));
+         return Start_Curve_Half_Distance + Mid_Distance + End_Curve_Half_Distance;
       end Curve_Corner_Distance;
    begin
       Block.Corner_Velocity_Limits (Block.Corner_Velocity_Limits'First) := 0.0 * mm / s;
@@ -56,7 +61,7 @@ package body Motion_Planner.Planner.Kinematic_Limiter is
             Optimal_Profile :=
               Optimal_Profile_For_Distance
                 (Block.Corner_Velocity_Limits (I - 1),
-                 Curve_Corner_Distance (I - 1, I),
+                 Curve_Corner_Distance (I),
                  Block.Limits.Acceleration_Max,
                  Block.Limits.Jerk_Max,
                  Block.Limits.Snap_Max,
@@ -84,7 +89,7 @@ package body Motion_Planner.Planner.Kinematic_Limiter is
             Optimal_Profile                  :=
               Optimal_Profile_For_Distance
                 (Block.Corner_Velocity_Limits (I + 1),
-                 Curve_Corner_Distance (I, I + 1),
+                 Curve_Corner_Distance (I + 1),
                  Block.Limits.Acceleration_Max,
                  Block.Limits.Jerk_Max,
                  Block.Limits.Snap_Max,
