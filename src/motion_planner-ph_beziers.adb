@@ -24,6 +24,7 @@ with Ada.Unchecked_Conversion;
 package body Motion_Planner.PH_Beziers is
 
    function Distance_At_T (Bez : PH_Bezier; T : Dimensionless) return Length is
+      --  Note that this assumes symmetrical curves as it makes the computation significantly faster.
       L : constant Length := abs (Bez.Control_Points (0) - Bez.Control_Points (1));
       B : constant Length := abs (Bez.Control_Points (4) - Bez.Control_Points (5));
    begin
