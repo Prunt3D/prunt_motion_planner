@@ -131,7 +131,7 @@ package body Motion_Planner.Planner.Preprocessor is
    begin
       for I in Axis_Name loop
          if Pos (I) < Params.Lower_Pos_Limit (I) or Pos (I) > Params.Upper_Pos_Limit (I) then
-            raise Constraint_Error with "Position is out of bounds (" & I'Image & " = " & Pos (I)'Image & ").";
+            raise Out_Of_Bounds_Error with "Position is out of bounds (" & I'Image & " = " & Pos (I)'Image & ").";
          end if;
       end loop;
    end Check_Bounds;

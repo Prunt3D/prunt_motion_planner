@@ -101,6 +101,8 @@ package Motion_Planner.Planner is
    procedure Dequeue (Block : out Execution_Block);
    --  Pop a block from the queue of processed blocks. Will block until a block is ready.
 
+   Out_Of_Bounds_Error : exception;
+
 private
    use Motion_Planner.PH_Beziers;
 
