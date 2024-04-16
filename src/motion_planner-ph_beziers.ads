@@ -22,16 +22,46 @@
 private package Motion_Planner.PH_Beziers is
 
    type PH_Bezier is private;
+   --  C⁴ continuous Pythagorean-hodograph curve as specified in https://doi.org/10.1007/s00170-022-09463-y.
 
-   function Distance_At_T (Bez : PH_Bezier; T : Dimensionless) return Length;
-   function T_At_Distance (Bez : PH_Bezier; Distance : Length) return Dimensionless;
+   subtype Curve_Parameter is Dimensionless range 0.0..1.0;
+
+   function Distance_At_T (Bez : PH_Bezier; T : Curve_Parameter) return Length;
+   --  Returns the distance along the curve at T. T = 0 will return the start point, T = 1 will return the end point,
+   --  and T=0.5 will return the midpoint. This function is monotonic but is not linear.
+
+   function T_At_Distance (Bez : PH_Bezier; Distance : Length) return Curve_Parameter;
+   --  Returns a value T where Distance_At_T (Bez, T) = Distance.
+
    function Inverse_Curvature (Bez : PH_Bezier) return Length;
+   --  Returns the inverse of the curvature at the midpoint, which is the point with the highest curvature.
+
    function Midpoint (Bez : PH_Bezier) return Scaled_Position;
-   function Point_At_T (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position;
-   function Tangent_At_T (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position_Offset;
+   --  Returns the midpoint of the curve. Equivalent to Point_At_T (Bez, 0.5).
+
+   function Point_At_T (Bez : PH_Bezier; T : Curve_Parameter) return Scaled_Position;
+   --  Return the point on the curve at T.
+
+   function Tangent_At_T (Bez : PH_Bezier; T : Curve_Parameter) return Scaled_Position_Offset;
+   --  Return a vector tangent to the curve at T. This vector is not normalised and will be zero is the curve has no
+   --  length.
+
    function Point_At_Distance (Bez : PH_Bezier; Distance : Length) return Scaled_Position;
+   --  Return the point that is a given distance along the curve. Equivalent to
+   --  Point_At_T (Bez, T_At_Distance (Bez, Distance)). This vector is not normalised and will be zero is the curve has
+   --  no length.
+
    function Tangent_At_Distance (Bez : PH_Bezier; Distance : Length) return Scaled_Position_Offset;
+   --  Return a vector tangent to the curve at at the given distance along the curve. Equivalent to
+   --  Tangent_At_T (Bez, T_At_Distance (Bez, Distance)).
+
    function Create_Bezier (Start, Corner, Finish : Scaled_Position; Deviation_Limit : Length) return PH_Bezier;
+   --  Create a C⁴ continuous Pythagorean-hodograph curve as specified in https://doi.org/10.1007/s00170-022-09463-y.
+   --
+   --  The curve will always be symmetrical rather than the asymmetrical curves shown in the paper. The distance from
+   --  the midpoint to Corner is limited by Deviation_Limit. The start and end of the curve will be on the vectors
+   --  between Corner and Start/Finish and will not further away from Corner than the midpoint between Corner and
+   --  Start/Finish.
 
 private
 

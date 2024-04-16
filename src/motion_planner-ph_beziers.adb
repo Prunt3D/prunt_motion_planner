@@ -23,7 +23,7 @@ with Ada.Unchecked_Conversion;
 
 package body Motion_Planner.PH_Beziers is
 
-   function Distance_At_T (Bez : PH_Bezier; T : Dimensionless) return Length is
+   function Distance_At_T (Bez : PH_Bezier; T : Curve_Parameter) return Length is
       --  Note that this assumes symmetrical curves as it makes the computation significantly faster.
       L : constant Length := abs (Bez.Control_Points (0) - Bez.Control_Points (1));
       B : constant Length := abs (Bez.Control_Points (4) - Bez.Control_Points (5));
@@ -43,28 +43,28 @@ package body Motion_Planner.PH_Beziers is
       end if;
    end Distance_At_T;
 
-   function T_At_Distance (Bez : PH_Bezier; Distance : Length) return Dimensionless is
-      Result : Dimensionless;
-      Lower  : Dimensionless := 0.0;
-      Upper  : Dimensionless := 1.0;
+   function T_At_Distance (Bez : PH_Bezier; Distance : Length) return Curve_Parameter is
+      Result : Curve_Parameter;
+      Lower  : Curve_Parameter := 0.0;
+      Upper  : Curve_Parameter := 1.0;
 
-      type Casted_Dimensionless is mod 2**64;
-      function Cast_Dimensionless is new Ada.Unchecked_Conversion (Dimensionless, Casted_Dimensionless);
-      function Cast_Dimensionless is new Ada.Unchecked_Conversion (Casted_Dimensionless, Dimensionless);
+      type Casted_Curve_Parameter is mod 2**64;
+      function Cast_Curve_Parameter is new Ada.Unchecked_Conversion (Curve_Parameter, Casted_Curve_Parameter);
+      function Cast_Curve_Parameter is new Ada.Unchecked_Conversion (Casted_Curve_Parameter, Curve_Parameter);
    begin
       --  This probably breaks when not using IEEE 754 floats or on other weird systems, so try to check for
       --  that.
-      pragma Assert (Dimensionless'Size = 64);
-      pragma Assert (Casted_Dimensionless'Size = 64);
-      pragma Assert (Cast_Dimensionless (86_400.0) = 4_680_673_776_000_565_248);
-      pragma Assert (Cast_Dimensionless (0.123_45) = 4_593_559_930_647_147_132);
+      pragma Assert (Curve_Parameter'Size = 64);
+      pragma Assert (Casted_Curve_Parameter'Size = 64);
+      pragma Assert (Cast_Curve_Parameter (86_400.0) = 4_680_673_776_000_565_248);
+      pragma Assert (Cast_Curve_Parameter (0.123_45) = 4_593_559_930_647_147_132);
 
       pragma Assert (Distance <= Distance_At_T (Bez, 1.0));
 
       loop
          Result :=
-           Cast_Dimensionless
-             (Cast_Dimensionless (Lower) + (Cast_Dimensionless (Upper) - Cast_Dimensionless (Lower)) / 2);
+           Cast_Curve_Parameter
+             (Cast_Curve_Parameter (Lower) + (Cast_Curve_Parameter (Upper) - Cast_Curve_Parameter (Lower)) / 2);
          exit when Lower = Result or Upper = Result;
          if Distance_At_T (Bez, Result) <= Distance then
             Lower := Result;
@@ -93,7 +93,7 @@ package body Motion_Planner.PH_Beziers is
       return Point_At_T (Bez, 0.5);
    end Midpoint;
 
-   function Point_At_T (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position is
+   function Point_At_T (Bez : PH_Bezier; T : Curve_Parameter) return Scaled_Position is
       Bez_2 : PH_Control_Points := Bez.Control_Points;
    begin
       for J in reverse Bez_2'First .. Bez_2'Last - 1 loop
@@ -105,7 +105,7 @@ package body Motion_Planner.PH_Beziers is
       return Bez_2 (Bez_2'First);
    end Point_At_T;
 
-   function Tangent_At_T (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position_Offset is
+   function Tangent_At_T (Bez : PH_Bezier; T : Curve_Parameter) return Scaled_Position_Offset is
       Bez_2 : PH_Control_Points := Bez.Control_Points;
    begin
       for J in reverse Bez_2'First + 1 .. Bez_2'Last - 1 loop
@@ -120,7 +120,7 @@ package body Motion_Planner.PH_Beziers is
    --  This method is slower than Point_At_T on most CPUs, but may be useful if this code is ported to a GPU or FPGA.
    --  It may also be faster for cases where T is known at compile time, but I am not aware of any methods to detect
    --  that with GCC.
-   function Point_At_T_V2 (Bez : PH_Bezier; T : Dimensionless) return Scaled_Position is
+   function Point_At_T_V2 (Bez : PH_Bezier; T : Curve_Parameter) return Scaled_Position is
    begin
       return
         Bez.Control_Points (0) * ((1.0 - T)**15) +

@@ -36,7 +36,7 @@ package body Motion_Planner.Planner.Corner_Blender is
          end if;
 
          --  If all virtual corners are within the allowed volume, then no point on any curve will be outside of the
-         --  allowed volume.
+         --  allowed volume. This assumes that all original points were within the allowed volume.
          --
          --  TODO: More advanced corner shifting that allows for virtual corners to be outside the volume when the
          --  curve is fully inside the volume.

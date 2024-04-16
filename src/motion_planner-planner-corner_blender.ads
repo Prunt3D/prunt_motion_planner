@@ -23,6 +23,14 @@ private generic
 package Motion_Planner.Planner.Corner_Blender is
 
    procedure Run (Block : in out Execution_Block);
+   --  Fills Block.Beziers based on the block parameters.
+   --
+   --  Deviation of the curve path is limited by Chord_Error_Max.
+   --
+   --  If Shift_Blended_Corners is true then corners that are not within Chord_Error_Max of the work area and are not
+   --  outside of the work area will be shifted so that the midpoint of the curve is where the original corner was.
+   --  Block.Corners will not be modified. The accuracy for this shifting is controlled by the generic parameter
+   --  Corner_Blender_Max_Computational_Error.
 
 private
 
