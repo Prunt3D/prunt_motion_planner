@@ -20,7 +20,6 @@
 -----------------------------------------------------------------------------
 
 with Ada.Text_IO;
-with Ada.Exceptions;
 with Motion_Planner.Planner.Preprocessor;
 with Motion_Planner.Planner.Corner_Blender;
 with Motion_Planner.Planner.Kinematic_Limiter;
@@ -74,10 +73,6 @@ package body Motion_Planner.Planner is
 
          Execution_Block_Queue.Enqueue (Working.Block);
       end loop;
-   exception
-      when E : others =>
-         Ada.Text_IO.Put_Line ("Exception in Motion_Planner.Planner:");
-         Ada.Text_IO.Put_Line (Ada.Exceptions.Exception_Information (E));
    end Runner;
 
    function Segment_Time (Block : Execution_Block; Finishing_Corner : Corners_Index) return Time is
